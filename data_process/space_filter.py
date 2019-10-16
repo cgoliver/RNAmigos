@@ -4,8 +4,8 @@
 from collections import defaultdict
 import pickle
 
-def ligand_filter(name):
-    if name in ['IRI', 'UNX']:
+def ligand_filter(lig_name):
+    if lig_name in ['UNX', 'OHX', 'MPD', 'SO4', 'IRI', 'PG4']:
         return False
     return True
 
@@ -14,7 +14,7 @@ def get_valids(d, max_dist, min_conc, min_size=4):
     ok_ligs = defaultdict(list)
     for pdb, ligands in d.items():
         for lig_id,lig_cuts in ligands:
-            lig_name = lig_id.split(":")[1]
+            lig_name = lig_id.split(":")[2]
             for c in lig_cuts:
                 tot = c['rna'] + c['protein']
                 if tot == 0:

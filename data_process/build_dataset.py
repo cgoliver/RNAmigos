@@ -2,17 +2,20 @@
     Build graph dataset for learning.
 """
 
+import sys
+if __name__ == "__main__":
+    sys.path.append("..")
+
 import pickle
+import itertools
 
 import numpy as np
+import networkx as nx
 from Bio.PDB import *
 
+from tools.rna_draw import *
 from rna_classes import *
-
-def ligand_filter(lig_id):
-    if lig_id.split(":")[1] in ['UNX', 'OHX', 'MPD', 'SO4', 'IRI', 'PG4']:
-        return False
-    return True
+from graph_process import *
 
 def lig_center(lig_atoms):
     return np.mean(np.array([a.coord for a in lig_atoms]), axis=0)
@@ -23,14 +26,10 @@ def find_residue(chain, pos):
             return residue
     return None
 
-def find_node(graph, chain, pos):
-    for n,d in graph.nodes(data=True):
-        if (n[0] == chain) and (d['nucleotide'].pdb_pos == str(pos)):
-            return n
-    return None
 
-def get_pocket_graph(pdb_structure_path, ligand_id, graph, cutoff=10):
+def get_pocket_graph(pdb_structure_path, ligand_id, graph, dump_path="../data/pockets_nx", cutoff=10):
     parser = MMCIFParser(QUIET=True)
+    pdbid = os.path.basename(pdb_structure_path).split(".")[0]
     structure = parser.get_structure("", pdb_structure_path)[0]
 
     chain,resname, pos = ligand_id.split(":")[1:]
@@ -47,8 +46,12 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph, cutoff=10):
         node = find_node(graph, r.get_parent().id, r.id[1])
         if node is not None:
             pocket_nodes.append(node)
-    pocket_graph = graph.subgraph(pocket_nodes)
-    print(pocket_graph.nodes())
+    expand = bfs_expand(graph, pocket_nodes, depth=1)
+    pocket_graph = graph.subgraph(expand).copy()
+    remove_self_loops(pocket_graph)
+    to_orig(pocket_graph)
+
+    pickle.dump(pocket_graph, open(os.path.join(dump_path, f"{pdbid}_{ligand_id}.p"), 'wb'))
 
     pass
 
