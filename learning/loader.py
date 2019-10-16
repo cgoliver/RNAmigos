@@ -1,50 +1,47 @@
 import pickle
+import sys
+import os
+from collections import Counter
+import itertools
+
+if __name__ == '__main__':
+    sys.path.append('../')
+
+import networkx as nx
 from tqdm import tqdm
 import dgl
-import os
-import networkx as nx
-import itertools
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, Subset
 import seaborn as sns
 import matplotlib.pyplot as plt
-import sys
 
-if __name__ == '__main__':
-    sys.path.append('../')
 
 from data_processor.node_sim import SimFunctionNode, k_block_list
 
-faces = ['W', 'S', 'H']
-orientations = ['C', 'T']
-edge_types = ['X', 'B53'] + [orient + e1 + e2 for e1, e2 in itertools.product(faces, faces) for orient in orientations]
-num_edge_types = len(edge_types)
-edge_map = {e: i for i, e in enumerate(edge_types)}
-
-#for aids
-edge_types = [0, 1]
-edge_map = {0:0, 1:1}
-
-
-# print(edge_types)
-
 class V1(Dataset):
-    def __init__(self, annotated_path='../data/annotated/samples', debug=False, shuffled=False):
+    def __init__(self, emb_size, sim_function="R_1",
+                    annotated_path='../data/annotated/pockets_nx',
+                    debug=False, shuffled=False):
         self.path = annotated_path
         self.all_graphs = os.listdir(annotated_path)
-        self.node_sim = SimFunctionNode(method='rings', depth=4)
-        self.n = len(self.all_graphs)
-
         #build edge map
-        self.edge_map = self._get_edge_map()
+        self.edge_map, self.edge_freqs = self._get_edge_data()
         self.num_edge_types = len(self.edge_map)
+
+        print(f"found {self.num_edge_types} edge types, frequencies: {self.edge_freqs}")
+
+        self.node_sim_func = SimFunctionNode(method=sim_function, IDF=self.edge_freqs, depth=4)
+
+        self.n = len(self.all_graphs)
+        self.emb_size = emb_size
+
 
     def __len__(self):
         return self.n
 
     def __getitem__(self, idx):
-        graph, _, ring = pickle.load(open(os.path.join(self.path, self.all_graphs[idx]), 'rb'))
+        graph, _, ring, fp = pickle.load(open(os.path.join(self.path, self.all_graphs[idx]), 'rb'))
 
         #adding the self edges
         # graph.add_edges_from([(n, n, {'label': 'X'}) for n in graph.nodes()])
@@ -56,35 +53,48 @@ class V1(Dataset):
         g_dgl = dgl.DGLGraph()
         g_dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'])
         n_nodes = len(g_dgl.nodes())
-        g_dgl.ndata['h'] = torch.ones((n_nodes, 128))
+        g_dgl.ndata['h'] = torch.ones((n_nodes, self.emb_size))
 
-        return g_dgl, ring
+        return g_dgl, ring, fp
 
-    def _get_edge_map(self):
+    def _get_edge_data(self):
+        """
+            Get edge type statistics, and edge map.
+        """
+        edge_counts = Counter()
         edge_labels = set()
-        print("Collecting edge labels.")
-        for g in tqdm(os.listdir(self.path)):
+        print("Collecting edge data...")
+        graphlist = os.listdir(self.path)
+        for g in tqdm(graphlist):
             graph,_,_ = pickle.load(open(os.path.join(self.path, g), 'rb'))
             edges = {e_dict['label'] for _,_,e_dict in graph.edges(data=True)}
-            edge_labels = edge_labels.union(edges)
+            edge_counts.update(edges)
 
-        return {label:i for i,label in enumerate(sorted(edge_labels))}
+        edge_map = {label:i for i,label in enumerate(sorted(edge_counts))}
+        IDF = {k: np.log(len(graphlist)/ edge_counts[k] + 1) for k in edge_counts}
+        return edge_map, IDF
 
-def collate_block(samples):
-    # The input `samples` is a list of pairs
-    #  (graph, label).
-    # print(len(samples))
-    graphs, rings = map(list, zip(*samples))
-    batched_graph = dgl.batch(graphs)
-    K = k_block_list(rings, SimFunctionNode(method='rings', depth=4))
-    return batched_graph, torch.from_numpy(K).detach().float()
-
+def collate_wrapper(node_sim_func):
+    """
+        Wrapper for collate function so we can use different node similarities.
+    """
+    def collate_block(samples):
+        # The input `samples` is a list of pairs
+        #  (graph, label).
+        # print(len(samples))
+        graphs, rings, fp = map(list, zip(*samples))
+        batched_graph = dgl.batch(graphs)
+        K = k_block_list(rings, node_sim_func)
+        return batched_graph, torch.from_numpy(K).detach().float(), torch.from_numpy(fp).detach().float()
+    return collate_block
 
 class Loader():
     def __init__(self,
                  annotated_path='data/annotated/samples/',
+                 emb_size=128,
                  batch_size=128,
                  num_workers=20,
+                 sim_function="R_1",
                  debug=False,
                  shuffled=False):
         """
@@ -100,9 +110,10 @@ class Loader():
         """
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.dataset = V1(annotated_path=annotated_path,
+        self.dataset = V1(emb_size, annotated_path=annotated_path,
                           debug=debug,
-                          shuffled=shuffled)
+                          shuffled=shuffled,
+                          sim_function=sim_function)
 
         self.num_edge_types = self.dataset.num_edge_types
 
@@ -124,6 +135,8 @@ class Loader():
         test_set = Subset(self.dataset, test_indices)
 
         print(len(train_set))
+
+        collate_block = collate_wrapper(self.dataset.node_sim_func)
 
         train_loader = DataLoader(dataset=train_set, shuffle=True, batch_size=self.batch_size,
                                   num_workers=self.num_workers, collate_fn=collate_block)

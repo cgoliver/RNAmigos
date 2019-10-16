@@ -4,6 +4,12 @@ import torch.nn.functional as F
 import sys
 import dgl
 
+#debug modules
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+##
+
 if __name__ == '__main__':
     sys.path.append('../')
 
@@ -11,8 +17,7 @@ if __name__ == '__main__':
 def send_graph_to_device(g, device):
     """
     Send dgl graph to device
-    :param g:
-    :param device:
+    :param g: :param device:
     :return:
     """
     g.set_n_initializer(dgl.init.zero_initializer)
@@ -30,7 +35,29 @@ def send_graph_to_device(g, device):
 
     return g
 
+def set_gradients(model, embedding=True, attributor=True):
+    """
+        Set the gradients to the embedding and the attributor networks.
+        If True sets requires_grad to true for network parameters.
+    """
+    for param in model.named_parameters():
+        name, p = param
+        name = name.split('.')[0]
+        if name in ['embeddings', 'attributor']:
+            p.requires_grad = attributor
+        if name == 'layers':
+            p.requires_grad = embedding
+    pass
 
+def print_gradients(model):
+    """
+        Set the gradients to the embedding and the attributor networks.
+        If True sets requires_grad to true for network parameters.
+    """
+    for param in model.named_parameters():
+        name, p = param
+        print(name, p.grad)
+    pass
 def test(model, test_loader, device, reconstruction_lam, motif_lam, ortho_lam):
     """
     Compute accuracy and loss of model over given dataset
@@ -103,6 +130,14 @@ def compute_loss(model, attributions, out, K,
     reconstruction_loss = torch.nn.MSELoss()
     reconstruction_loss = reconstruction_loss(K_predict, K)
 
+    """
+    IDEA:
+        - get graph-level embedding for each graph a = mean(Z, axis=0)
+        - get graph-level motif assignments for each graph, m = mean(\Sigma, axis=0)
+        - maybe add attention term to means
+        - train || DM(a) - DM(m) || -> 0
+    """
+
     if attributions is not None:
         E_prime = motif_embedding(model, attributions, out, device, normalize=model.motif_norm)
 
@@ -126,7 +161,7 @@ def compute_loss(model, attributions, out, K,
 
 def train_model(model, criterion, optimizer, device, train_loader, test_loader, save_path,
                 writer=None, num_epochs=25, wall_time=None, ortho_lam=1,
-                reconstruction_lam=1, motif_lam=1):
+                reconstruction_lam=1, motif_lam=1, embed_only=-1):
     """
     Performs the entire training routine.
     :param model: (torch.nn.Module): the model to train
@@ -142,6 +177,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     :param ortho_lam: how much to enforce orthogonality between motifs
     :param reconstruction_lam: how much to enforce pariwise similarity conservation
     :param motif_lam: how much to enforce motif assignment
+    :param embed_only: number of epochs before starting attributor training.
     :return:
     """
 
@@ -151,12 +187,30 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     start_time = time.time()
     best_loss = sys.maxsize
 
+    motif_lam_orig = motif_lam
+    reconstruction_lam_orig = reconstruction_lam
+    ortho_lam_orig = ortho_lam
+
+    #if we delay attributor, start with attributor OFF
+    #if <= -1, both always ON.
+    if embed_only > -1:
+        print("Switching attriutor OFF. Embeddings still ON.")
+        set_gradients(model, attributor=False)
+        motif_lam, ortho_lam = (0,0)
+
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))
         print('-' * 10)
 
         # Training phase
         model.train()
+
+        #switch off embedding grads, turn on attributor
+        if epoch == embed_only:
+            print("Switching attributor ON, embeddings OFF.")
+            set_gradients(model, embedding=False, attributor=True)
+            reconstruction_lam = 0
+            motif_lam, ortho_lam = (motif_lam_orig, ortho_lam_orig)
 
         running_loss = 0.0
 
@@ -165,7 +219,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
         num_batches = len(train_loader)
 
         for batch_idx, (graph, K) in enumerate(train_loader):
-
 
             # Get data on the devices
             batch_size = len(K)

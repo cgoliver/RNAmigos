@@ -29,7 +29,7 @@ class RGCNLayer(nn.Module):
         self.bias = bias
         self.activation = activation
         self.is_input_layer = is_input_layer
-
+        
         # sanity check
         if self.num_bases <= 0 or self.num_bases > self.num_rels:
             self.num_bases = self.num_rels
@@ -163,6 +163,7 @@ class Model(nn.Module):
         # print('last',last_hidden,last)
         self.layers.append(h2o)
 
+            
     def build_hidden_layer(self, in_dim, out_dim):
         return RGCNLayer(in_dim, out_dim, self.num_rels, self.num_bases,
                          activation=F.relu)
