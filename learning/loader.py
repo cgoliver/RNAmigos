@@ -66,7 +66,7 @@ class V1(Dataset):
         print("Collecting edge data...")
         graphlist = os.listdir(self.path)
         for g in tqdm(graphlist):
-            graph,_,_ = pickle.load(open(os.path.join(self.path, g), 'rb'))
+            graph,_,_,_ = pickle.load(open(os.path.join(self.path, g), 'rb'))
             edges = {e_dict['label'] for _,_,e_dict in graph.edges(data=True)}
             edge_counts.update(edges)
 
@@ -83,6 +83,7 @@ def collate_wrapper(node_sim_func):
         #  (graph, label).
         # print(len(samples))
         graphs, rings, fp = map(list, zip(*samples))
+        fp = np.array(fp)
         batched_graph = dgl.batch(graphs)
         K = k_block_list(rings, node_sim_func)
         return batched_graph, torch.from_numpy(K).detach().float(), torch.from_numpy(fp).detach().float()

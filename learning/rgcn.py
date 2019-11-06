@@ -16,6 +16,7 @@ import torch.nn.functional as F
 import dgl.function as fn
 from functools import partial
 import dgl
+from dgl import mean_nodes
 
 
 class RGCNLayer(nn.Module):
@@ -112,7 +113,7 @@ class Attributor(nn.Module):
             layers.append(nn.Dropout(0.5))
         # hidden to output
         layers.append(nn.Linear(last_hidden, last))
-        layers.append(nn.Softmax(dim=1))
+        # layers.append(nn.Softmax(dim=1))
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -163,7 +164,6 @@ class Model(nn.Module):
         # print('last',last_hidden,last)
         self.layers.append(h2o)
 
-            
     def build_hidden_layer(self, in_dim, out_dim):
         return RGCNLayer(in_dim, out_dim, self.num_rels, self.num_bases,
                          activation=F.relu)
@@ -178,8 +178,7 @@ class Model(nn.Module):
             # print(g.ndata['h'].size())
             layer(g)
             # print(g.ndata['h'].size())
-        embeddings = g.ndata.pop('h')
         if self.attributor_dims is not None:
-            attributions = self.attributor(embeddings)
-            return embeddings, attributions
+            attributions = self.attributor(mean_nodes(g, 'h'))
+            return g.ndata['h'], attributions
         return embeddings, None
