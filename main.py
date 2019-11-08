@@ -113,7 +113,14 @@ model = Model(dims=dims, attributor_dims=attributor_dims,
 #if pre-trained initialize matching layers
 if args.warm_start:
     print("warm starting")
-    model.load_state_dict(torch.load(args.warm_start), strict=False)
+    m = torch.load(args.warm_start)['model_state_dict']
+    #remove keys not related to embeddings
+    for k in list(m.keys()):
+        if 'layers' not in k:
+            del m[k]
+    # print(m['model_state_dict']['layers.2.weight'])
+    missing = model.load_state_dict(m, strict=False)
+    print(missing)
 
 model = model.to(device)
 
