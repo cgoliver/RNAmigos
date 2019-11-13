@@ -74,11 +74,13 @@ def test(model, test_loader, device, reconstruction_lam, motif_lam):
         # Get data on the devices
         K = K.to(device)
         fp = fp.to(device)
+        print(fp)
         K = torch.ones(K.shape).to(device) - K
         graph = send_graph_to_device(graph, device)
 
         # Do the computations for the forward pass
         out, attributions = model(graph)
+        print(attributions)
         loss, reconstruction_loss, motif_loss = compute_loss(model=model, attributions=attributions, fp=fp,
                                                                          out=out, K=K, device=device,
                                                                          reconstruction_lam=reconstruction_lam,
@@ -109,7 +111,7 @@ def compute_loss(model, attributions, out, K, fp,
     K_predict = torch.norm(out[:, None] - out, dim=2, p=2)
     reconstruction_loss = torch.nn.MSELoss()
     reconstruction_loss = reconstruction_loss(K_predict, K)
-    motif_loss = torch.nn.MSELoss()
+    motif_loss = torch.nn.BCELoss()
     motif_loss = motif_loss(attributions, fp)
 
 

@@ -113,7 +113,7 @@ class Attributor(nn.Module):
             layers.append(nn.Dropout(0.5))
         # hidden to output
         layers.append(nn.Linear(last_hidden, last))
-        # layers.append(nn.Softmax(dim=1))
+        layers.append(nn.Sigmoid())
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -144,11 +144,6 @@ class Model(nn.Module):
             #  create attributor
             self.attributor = Attributor(attributor_dims)
 
-            #  create Embeddings
-            self.embeddings = torch.nn.Parameter(0.1 * torch.randn((self.num_modules, self.dimension_embedding)),
-                                                 requires_grad=True)
-            # self.embeddings = nn.Embedding(num_modules, attributor_dims[-1])
-
     def build_model(self):
         self.layers = nn.ModuleList()
 
@@ -178,7 +173,5 @@ class Model(nn.Module):
             # print(g.ndata['h'].size())
             layer(g)
             # print(g.ndata['h'].size())
-        if self.attributor_dims is not None:
-            attributions = self.attributor(mean_nodes(g, 'h'))
-            return g.ndata['h'], attributions
-        return embeddings, None
+        attributions = self.attributor(mean_nodes(g, 'h'))
+        return g.ndata['h'], attributions

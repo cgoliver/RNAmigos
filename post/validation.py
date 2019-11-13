@@ -16,9 +16,23 @@ from tqdm import tqdm
 import networkx as nx
 import numpy as np
 from numpy.linalg import norm
+from scipy.spatial.dist import jaccard
 import torch
 
 from learning.rgcn import Model
+
+def distance_rank(active, pred, decoys, dist_func=jaccard):
+    """
+        Get rank of prediction in `decoys` given a known active ligand.
+    """
+
+    pred_dist = distance(active, pred)
+    rank = 0
+    for lig in ligands:
+        d = distance(active, lig)
+        if d < pred_dist:
+            rank += 1
+    return rank / (len(decoys) + 1)
 
 def decoy_test(model, test_set, decoys):
     """
@@ -31,10 +45,14 @@ def decoy_test(model, test_set, decoys):
 
         :return: enrichment score
     """
+    ranks = []
     for g, true_id in test_set:
         out = model(g)
-        decs = decoys[true_id][0] + decoys[true_id][1]
-    pass
+        active = decoys[true_id][0]
+        decs = decoys[true_id][1]
+        rank = distance_rank(active, out, decs)
+        ranks.append(rank)
+    return np.mean(ranks)
 
 if __name__ == "__main__":
     graph_dir = "../data/annotated/samples"
@@ -60,66 +78,3 @@ if __name__ == "__main__":
 
     model = Model(dims=dims, attributor_dims=attributor_dims, num_rels=num_edge_types, motif_norm=False, num_bases=-1)
     model.load_state_dict(torch.load(f'../trained_models/{run}/{run}.pth', map_location='cpu')['model_state_dict'])
-
-    random_attr = dummy_attrib(graph_dir, edge_map, dims[0], n_clusters=16)
-    same_attr = dummy_attrib(graph_dir, edge_map, dims[0], n_clusters=16, mode='same')
-    # Use the attributing model to build an attribution dict
-    # attr_dict_e2e = e2e_motif(graph_dir, model, edge_map, dims[0])
-    # print(attr_dict_e2e)
-    # attr_draw(attr_dict_e2e, 3, num_motifs=16, varna_draw=False)
-
-    # Use the agglomerative clustering to build the attirubtion dict
-    attr_dict_agg = node_cluster(graph_dir, model, edge_map, dims[0], n_clusters=16)
-    for m in range(16):
-        attr_draw(attr_dict_agg, m, num_motifs=16, varna_draw=False)
-
-    carnaval_nodes = pickle.load(open(f'../data/carnaval_motifs_nodes.p', 'rb'))
-    scores = defaultdict(list)
-
-    # get entropy scores
-    for i, motif_instance_nodes in enumerate(carnaval_nodes):
-        print(i)
-        motif_instance_attribs_e2e = {k: v for k, v in attr_dict_e2e.items() if int(k.split("_")[0]) == i}
-        motif_instance_attribs_agg = {k: v for k, v in attr_dict_agg.items() if int(k.split("_")[0]) == i}
-        motif_instance_attribs_random = {k: v for k, v in random_attr.items() if int(k.split("_")[0]) == i}
-        motif_instance_attribs_same = {k: v for k, v in same_attr.items() if int(k.split("_")[0]) == i}
-
-        motif_node_dict = {f"{i}_{j}.nxpickle": nodes for j, nodes in enumerate(motif_instance_nodes)}
-        score = carnaval_motif_entropy(
-            motif_instance_attribs_e2e,
-            motif_node_dict,
-            N=16)
-        scores['e2e'].append(score)
-        print(f"e2e {score}")
-        score = carnaval_motif_entropy(
-            motif_instance_attribs_agg,
-            motif_node_dict,
-            N=16)
-        scores['agg'].append(score)
-        print(f"agg {score}")
-        score = carnaval_motif_entropy(
-            motif_instance_attribs_random,
-            motif_node_dict,
-            N=16)
-        scores['random'].append(score)
-        print(f"random {score}")
-        score = carnaval_motif_entropy(
-            motif_instance_attribs_same,
-            motif_node_dict,
-            N=16)
-        scores['same'].append(score)
-        print(f"same {score}")
-        # ((graph, attribs, motif_nodes),..)
-        # motif_draw(motif_instance_attribs_e2e, motif_node_dict,
-        # show=True)
-    sys.exit()
-    # plot scores
-    for i, val in enumerate(['Intra-Motif_Entropy', 'Jensen-Shannon_Divergence']):
-        for method, sc in scores.items():
-            plt.plot([s[i] for s in sc], label=method)
-        plt.legend()
-        plt.xlabel("motif")
-        plt.ylabel(val)
-        # plt.savefig(f"/Users/carlosgonzalezoliver/Projects/gemini/figs/{val.replace('_','-')}.pdf", format="pdf")
-        plt.show()
-    sys.exit()
