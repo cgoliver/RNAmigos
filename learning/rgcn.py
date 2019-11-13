@@ -172,5 +172,7 @@ class Model(nn.Module):
             # print(g.ndata['h'].size())
             layer(g)
             # print(g.ndata['h'].size())
-        attributions = self.attributor(mean_nodes(g, 'h'))
+        g_emb = mean_nodes(g, 'h')
+        attributions = self.attributor(g_emb)
+        del g_emb
         return g.ndata['h'], attributions

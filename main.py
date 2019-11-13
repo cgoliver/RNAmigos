@@ -44,7 +44,7 @@ Hardware settings
 '''
 
 # torch.multiprocessing.set_sharing_strategy('file_system')
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 # This is to create an appropriate number of workers, but works too with cpu
 if args.parallel:

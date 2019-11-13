@@ -83,11 +83,18 @@ def test(model, test_loader, device, reconstruction_lam, motif_lam):
                                                                          out=out, K=K, device=device,
                                                                          reconstruction_lam=reconstruction_lam,
                                                                          motif_lam=motif_lam)
+        del K
+        del fp
+        del graph
 
         recons_loss_tot += reconstruction_loss
         motif_loss_tot += motif_loss
         test_loss += loss.item()
 
+        del loss
+
+    torch.cuda.empty_cache()
+    torch.cuda.synchronize()
     return test_loss / test_size, motif_loss_tot / test_size, recons_loss_tot / test_size
 
 def compute_loss(model, attributions, out, K, fp,
@@ -138,7 +145,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     """
 
     epochs_from_best = 0
-    early_stop_threshold = 6000
+    early_stop_threshold = 80
 
     start_time = time.time()
     best_loss = sys.maxsize
@@ -190,6 +197,9 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
                                                                              out=out, K=K, device=device,
                                                                              reconstruction_lam=reconstruction_lam,
                                                                              motif_lam=motif_lam)
+            del K
+            del fp
+            del graph
             # Backward
             loss.backward()
             optimizer.step()
@@ -219,6 +229,8 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
                 writer.add_scalar("Training motif loss", motif_loss,
                                   epoch * num_batches + batch_idx)
 
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
         # Log training metrics
         train_loss = running_loss / num_batches
         writer.add_scalar("Training epoch loss", train_loss, epoch)
@@ -227,8 +239,10 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
         # writer.log_scalar("Train accuracy during training", train_accuracy, epoch)
 
         # Test phase
-        test_loss, motif_loss, recons_loss = test(model, test_loader, device, reconstruction_lam, motif_lam,
-                                                              )
+        test_loss, motif_loss, recons_loss = test(model, test_loader, device, reconstruction_lam, motif_lam)
+
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
 
         writer.add_scalar("Test loss during training", test_loss, epoch)
         writer.add_scalar("Test reconstruction loss", recons_loss, epoch)
