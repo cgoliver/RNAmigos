@@ -125,14 +125,13 @@ class Attributor(nn.Module):
 # ~~~~~~~~~~~~~~~~~~~~~~~
 
 class Model(nn.Module):
-    def __init__(self, dims, attributor_dims, num_rels, motif_norm, num_bases=-1):
+    def __init__(self, dims, attributor_dims, num_rels, num_bases=-1):
         super(Model, self).__init__()
         # self.num_nodes = num_nodes
         self.dims = dims
         self.num_rels = num_rels
         self.num_bases = num_bases
         self.attributor_dims = attributor_dims
-        self.motif_norm = motif_norm
 
         # create rgcn layers
         self.build_model()

@@ -9,12 +9,10 @@ parser.add_argument("-wt", "--wall_time", type=int, default=None, help="Max time
 parser.add_argument("-n", "--name", type=str, default='default_name', help="Name for the logs")
 parser.add_argument("-t", "--timed", help="to use timed learning", action='store_true')
 parser.add_argument("-ep", "--num_epochs", type=int, help="number of epochs to train", default=3)
-parser.add_argument("-ml", "--motif_lambda", type=float, help="motif lambda", default=1.0)
-parser.add_argument("-ol", "--ortho_lambda", type=float, help="ortho lambda", default=1.0)
-parser.add_argument("-rl", "--reconstruction_lambda", type=float, help="reconstruction lambda", default=1.0)
+parser.add_argument("-ml", "--motif_lam", type=float, help="motif lambda", default=1.0)
+parser.add_argument("-rl", "--reconstruction_lam", type=float, help="reconstruction lambda", default=1.0)
 parser.add_argument('-ad','--attributor_dims', nargs='+', type=int, help='Dimensions for attributor.', default=[128,64,32])
 parser.add_argument('-ed','--embedding_dims', nargs='+', type=int, help='Dimensions for embeddings.', default=[128,128,128,128,128,128])
-parser.add_argument('-mn','--motif_norm', type=bool, help='Normalize motif embeddings.', default=False) 
 parser.add_argument('-sf','--sim_function', type=str, help='Node similarity function (Supported Options: R_1, IDF).', default="R_1")
 parser.add_argument('-eo','--embed_only', type=int, help='Number of epochs to train embedding network before starting attributor. If -eo > num_epochs, no attributions trained. If < 0, attributor and embeddings always on. If 0 <= -eo <- num_epochs, switch attributor ON and embeddings OFF.', default=-1)
 parser.add_argument('-w', '--warm_start', type=str, default=None, help='Path to pre-trained model.')
@@ -102,12 +100,11 @@ if dims[-1] != attributor_dims[0]:
     raise ValueError(f"Final embedding size must match first attributor dimension: {dims[-1]} != {attributor_dims[0]}")
 
 
-motif_lam = args.motif_lambda
-ortho_lam = args.ortho_lambda
-reconstruction_lam = args.reconstruction_lambda
+motif_lam = args.motif_lam
+reconstruction_lam = args.reconstruction_lam
 
 model = Model(dims=dims, attributor_dims=attributor_dims,
-              num_rels=loader.num_edge_types, motif_norm=args.motif_norm,
+              num_rels=loader.num_edge_types,
               num_bases=-1)
 
 #if pre-trained initialize matching layers
@@ -181,4 +178,6 @@ learn.train_model(model=model,
                   writer=writer,
                   num_epochs=num_epochs,
                   wall_time=wall_time,
+                  reconstruction_lam=reconstruction_lam,
+                  motif_lam=motif_lam,
                   embed_only=args.embed_only)

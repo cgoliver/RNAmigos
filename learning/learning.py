@@ -74,13 +74,11 @@ def test(model, test_loader, device, reconstruction_lam, motif_lam):
         # Get data on the devices
         K = K.to(device)
         fp = fp.to(device)
-        print(fp)
         K = torch.ones(K.shape).to(device) - K
         graph = send_graph_to_device(graph, device)
 
         # Do the computations for the forward pass
         out, attributions = model(graph)
-        print(attributions)
         loss, reconstruction_loss, motif_loss = compute_loss(model=model, attributions=attributions, fp=fp,
                                                                          out=out, K=K, device=device,
                                                                          reconstruction_lam=reconstruction_lam,
@@ -103,7 +101,6 @@ def compute_loss(model, attributions, out, K, fp,
     :param device:
     :param reconstruction_lam:
     :param motif_lam:
-    :param ortho_lam:
     :return:
     """
 
@@ -134,7 +131,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     :param writer: a Tensorboard object (defined in utils)
     :param num_epochs: int number of epochs
     :param wall_time: The number of hours you want the model to run
-    :param ortho_lam: how much to enforce orthogonality between motifs
     :param reconstruction_lam: how much to enforce pariwise similarity conservation
     :param motif_lam: how much to enforce motif assignment
     :param embed_only: number of epochs before starting attributor training.
@@ -142,7 +138,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     """
 
     epochs_from_best = 0
-    early_stop_threshold = 60
+    early_stop_threshold = 6000
 
     start_time = time.time()
     best_loss = sys.maxsize
