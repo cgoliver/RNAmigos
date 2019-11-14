@@ -150,10 +150,6 @@ writer = SummaryWriter(result_folder)
 print(f'Saving result in {name}')
 
 
-print(test_loader.dataset.indices)
-print(dir(test_loader.dataset.dataset))
-print(test_loader.dataset.dataset.all_graphs)
-
 import numpy as np
 
 all_graphs = np.array(test_loader.dataset.dataset.all_graphs)

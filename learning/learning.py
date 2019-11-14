@@ -70,7 +70,7 @@ def test(model, test_loader, device, reconstruction_lam, motif_lam):
     model.eval()
     test_loss,  motif_loss_tot, recons_loss_tot = (0,) * 3
     test_size = len(test_loader)
-    for batch_idx, (graph, K, fp, titles) in enumerate(test_loader):
+    for batch_idx, (graph, K, fp) in enumerate(test_loader):
         # Get data on the devices
         K = K.to(device)
         fp = fp.to(device)
