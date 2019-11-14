@@ -54,6 +54,7 @@ class V1(Dataset):
         g_dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'])
         n_nodes = len(g_dgl.nodes())
         g_dgl.ndata['h'] = torch.ones((n_nodes, self.emb_size))
+        g_dgl.title = self.all_graphs[idx]
 
         return g_dgl, ring, fp
 

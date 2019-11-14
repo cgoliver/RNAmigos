@@ -1,4 +1,6 @@
 import argparse
+import os
+import pickle
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--parallel", default=True, help="If we don't want to run thing in parallel", action='store_false')
@@ -24,7 +26,6 @@ import torch
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
-import os
 
 # Homemade modules
 if args.timed:
@@ -148,18 +149,19 @@ result_folder, save_path = mkdirs(name)
 writer = SummaryWriter(result_folder)
 print(f'Saving result in {name}')
 
-'''
-Get Summary of the model
-'''
 
-# from torchsummary import summary
-# train_loader = iter(train_loader)
-# print(next(train_loader)[0].shape)
-# summary(model, (4, 42, 32, 32))
-# for p in model.parameters():
-#     print(p.__name__)
-#     print(p.numel())
-# print(sum(p.numel() for p in model.parameters()))
+print(test_loader.dataset.indices)
+print(dir(test_loader.dataset.dataset))
+print(test_loader.dataset.dataset.all_graphs)
+
+import numpy as np
+
+all_graphs = np.array(test_loader.dataset.dataset.all_graphs)
+test_inds = test_loader.dataset.indices
+train_inds = train_loader.dataset.indices
+
+pickle.dump(({'test': all_graphs[test_inds], 'train': all_graphs[train_inds]}),
+                open(os.path.join('results', name, 'splits.p'), 'wb'))
 
 wall_time = args.wall_time
 
