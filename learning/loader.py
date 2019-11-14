@@ -125,7 +125,7 @@ class Loader():
         # np.random.shuffle(indices)
 
         np.random.seed(0)
-        split_train, split_valid = 0.7, 0.7
+        split_train, split_valid = 0.8, 0.8
         train_index, valid_index = int(split_train * n), int(split_valid * n)
 
         train_indices = indices[:train_index]
