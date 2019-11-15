@@ -31,6 +31,35 @@ def to_orig(G):
             H.add_edge(n1, n2, label=d['label'])
     return H
 
+def graph_ablations(G, mode):
+    """
+        Remove edges with certain labels depending on the mode.
+
+        :params
+        
+        :G Binding Site Graph
+        :mode how to remove edges ('bb-only', 'wc-bb', 'no-stack')
+
+        :returns: Copy of original graph with edges removed.
+    """
+
+    H = nx.Graph()
+
+    if mode == 'no-label':
+        for n1, n2, d in G.edges(data=True):
+            H.add_edge(n1, n2, label='X')
+        return H
+
+    if mode =='bb-only':
+        valid_edges = ['B53']
+    if mode == 'wc-bb':
+        valid_edges = ['B53', 'CWW']
+
+    for n1, n2, d in G.edges(data=True):
+        if d['label'] in valid_edges:
+            H.add_edge(n1, n2, label=d['label'])
+    return H
+
 def find_node(graph, chain, pos):
     for n,d in graph.nodes(data=True):
         if (n[0] == chain) and (d['nucleotide'].pdb_pos == str(pos)):

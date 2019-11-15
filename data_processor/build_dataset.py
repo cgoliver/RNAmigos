@@ -31,7 +31,7 @@ def find_residue(chain, pos):
     return None
 
 
-def get_pocket_graph(pdb_structure_path, ligand_id, graph, dump_path="../data/pockets_nx", cutoff=10):
+def get_pocket_graph(pdb_structure_path, ligand_id, graph, ablate=None, dump_path="../data/pockets_nx", cutoff=10):
     parser = MMCIFParser(QUIET=True)
     pdbid = os.path.basename(pdb_structure_path).split(".")[0]
     structure = parser.get_structure("", pdb_structure_path)[0]
@@ -53,9 +53,12 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph, dump_path="../data/po
     expand = bfs_expand(graph, pocket_nodes, depth=1)
     pocket_graph = graph.subgraph(expand).copy()
     G = to_orig(pocket_graph)
+
     labels = {d['label'] for _,_,d in G.edges(data=True)}
 
     assert labels.issubset(valid_edges)
+
+    #kill some edges for ablation controls
 
     nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}.nx"))
 
@@ -89,5 +92,5 @@ def ligand_binding(lig_dict_path, dump_path):
 
 if __name__ == "__main__":
     #take all ligands with 8 angstrom sphere and 0.6 RNA concentration, build a graph for each.
-    ligand_binding('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx')
+    ligand_binding('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_bb-only')
     pass

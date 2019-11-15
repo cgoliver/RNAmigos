@@ -52,7 +52,7 @@ def distance_rank(active, pred, decoys, dist_func=jaccard):
             rank += 1
     return rank / (len(decoys) + 1)
 
-def decoy_test(model, decoys, edge_map, embed_dim, test_graph_path="../data/annotated/pockets_nx"):
+def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, test_graph_path="../data/annotated/pockets_nx"):
     """
         Check performance against decoy set.
         decoys --> {'ligand_id', ('expected_FP', [decoy_fps])}
@@ -60,11 +60,16 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graph_path="../data/anno
         :model trained model
         :test_set inputs for model to test (RNA graphs)
         :decoys dictionary with list of decoys for each input to test.
+        :test_graphlist list of graph names to use in the test.
 
         :return: enrichment score
     """
     ranks = []
-    for g_path in os.listdir(test_graph_path):
+
+    if test_graphlist is None:
+        test_graphlist = os.listdir(test_graph_path)
+        
+    for g_path in test_graphlist:
         g,_,_,_ = pickle.load(open(os.path.join(test_graph_path, g_path), 'rb'))
         try:
             true_id = g_path.split(":")[2]
@@ -85,8 +90,12 @@ if __name__ == "__main__":
     decoys = get_decoys()
 
     graph_dir = "../data/annotated/pockets_nx"
+    # graph_dir = "../data/annotated/pockets_nx_bb-only"
+    # graph_dir = "../data/annotated/pockets_nx_wc-bb"
+    run = 'small_no_rec_wc-bb'
     run = 'small_no_rec_2'
     edge_map = get_edge_map(graph_dir)
+    print(edge_map)
     num_edge_types = len(edge_map)
 
 
@@ -97,5 +106,7 @@ if __name__ == "__main__":
     model = Model(dims=dims, attributor_dims=attributor_dims, num_rels=num_edge_types, num_bases=-1)
     model.load_state_dict(torch.load(f'../trained_models/{run}/{run}.pth', map_location='cpu')['model_state_dict'])
 
-    acc = decoy_test(model, decoys, edge_map, 32)
+    test_graphs = pickle.load(open(f'../results/{run}/splits.p', 'rb'))['test']
+
+    acc = decoy_test(model, decoys, edge_map, 32, test_graphlist=test_graphs, test_graph_path=graph_dir)
     print(acc)

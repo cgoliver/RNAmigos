@@ -4,11 +4,16 @@ Functions to take a nx object and return (nx, dict_tree, dict_rings)
 
 import networkx as nx
 import os, sys
+
+if __name__ == "__main__":
+    sys.path.append('..')
 import pickle
 import time
 from collections import defaultdict, Counter
 import multiprocessing as mlt
 from tqdm import tqdm
+
+from data_processor.graph_process import graph_ablations
 
 
 def node_tree(G, v, depth=5):
@@ -167,16 +172,18 @@ def annotate_one(args):
     :param args: ( g (name of the graph),
     :return:
     """
-    g, graph_path, dump_path, fp = args
+    g, graph_path, dump_path, fp, ablate = args
     try:
         dump_name = os.path.basename(g).replace('.cif', '') + "_annot.p"
         dump_full = os.path.join(dump_path, dump_name)
         # for processed in os.listdir(dump_path):
             # if processed.startswith(dump_name):
                 # return 0, 0
+
         graph = nx.read_gpickle(os.path.join(graph_path, g))
-        # start = time.perf_counter()
-        # print(f"{time.perf_counter() - start}")
+        if ablate:
+            graph = graph_ablations(graph, ablate)
+
         annots = tuple(list(annotate(graph)) + [fp])
         pickle.dump((graph, *annots),
                     open(dump_full, 'wb'))
@@ -186,7 +193,8 @@ def annotate_one(args):
         return 1, g
 
 
-def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotated/sample', graph_path='../data/chunks_nx', parallel=True):
+def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotated/sample', 
+                graph_path='../data/chunks_nx', ablate="", parallel=True):
     """
     Routine for all files in a folder
     :param dump_path: 
@@ -200,8 +208,13 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
     lig_name = lambda x: x.split(":")[2]
     pool = mlt.Pool()
 
+    try:
+        os.mkdir(dump_path)
+    except:
+        pass
+
     if parallel:
-        arguments = [(g, graph_path, dump_path, fp_dict[lig_name(g)]) for g in graphs]
+        arguments = [(g, graph_path, dump_path, fp_dict[lig_name(g)], ablate) for g in graphs]
         for res in tqdm(pool.imap_unordered(annotate_one, arguments), total=len(graphs)):
             if res[0]:
                 failed += 1
@@ -209,7 +222,7 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
         print(f'failed on {(failed)} on {len(graphs)}')
         return failed
     for graph in tqdm(graphs, total=len(graphs)):
-        res = annotate_one((graph, graph_path, dump_path, fp_dict[lig_name(graph)]))
+        res = annotate_one((graph, graph_path, dump_path, fp_dict[lig_name(graph)], ablate))
         if res[0]:
             failed += 1
             print(f'failed on {graph}, this is the {failed}-th one on {len(graphs)}')
@@ -217,4 +230,4 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
 
 
 if __name__ == '__main__':
-    annotate_all(dump_path='../data/annotated/pockets_nx', graph_path='../data/pockets_nx')
+    annotate_all(dump_path='../data/annotated/pockets_nx_no-label', graph_path='../data/pockets_nx', ablate='no-label')
