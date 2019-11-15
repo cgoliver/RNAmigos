@@ -169,11 +169,11 @@ def annotate_one(args):
     """
     g, graph_path, dump_path, fp = args
     try:
-        dump_name = os.path.basename(g).split('.')[0] + "_annot.p"
+        dump_name = os.path.basename(g).replace('.cif', '') + "_annot.p"
         dump_full = os.path.join(dump_path, dump_name)
-        for processed in os.listdir(dump_path):
-            if processed.startswith(dump_name):
-                return 0, 0
+        # for processed in os.listdir(dump_path):
+            # if processed.startswith(dump_name):
+                # return 0, 0
         graph = nx.read_gpickle(os.path.join(graph_path, g))
         # start = time.perf_counter()
         # print(f"{time.perf_counter() - start}")
