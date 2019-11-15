@@ -19,12 +19,13 @@ import matplotlib.pyplot as plt
 
 from data_processor.node_sim import SimFunctionNode, k_block_list
 
+
 class V1(Dataset):
     def __init__(self, emb_size, sim_function="R_1",
                     annotated_path='../data/annotated/pockets_nx',
                     debug=False, shuffled=False):
         self.path = annotated_path
-        self.all_graphs = os.listdir(annotated_path)
+        self.all_graphs = sorted(os.listdir(annotated_path))
         #build edge map
         self.edge_map, self.edge_freqs = self._get_edge_data()
         self.num_edge_types = len(self.edge_map)

@@ -40,7 +40,7 @@ def graph_ablations(G, mode):
         :G Binding Site Graph
         :mode how to remove edges ('bb-only', 'wc-bb', 'no-stack')
 
-        :returns: Copy of original graph with edges removed.
+        :returns: Copy of original graph with edges removed/relabeled.
     """
 
     H = nx.Graph()
