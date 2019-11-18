@@ -92,8 +92,8 @@ if __name__ == "__main__":
     graph_dir = "../data/annotated/pockets_nx"
     # graph_dir = "../data/annotated/pockets_nx_bb-only"
     # graph_dir = "../data/annotated/pockets_nx_wc-bb"
-    graph_dir = "../data/annotated/pockets_nx_wc-bb-nc"
-    run = 'small_no_rec_wc-bb-nc'
+    graph_dir = "../data/pockets_nx_label-shuffle"
+    run = 'small_no_rec_label-shuffle'
     edge_map = get_edge_map(graph_dir)
     print(edge_map)
     num_edge_types = len(edge_map)
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     model = Model(dims=dims, attributor_dims=attributor_dims, num_rels=num_edge_types, num_bases=-1)
     model.load_state_dict(torch.load(f'../trained_models/{run}/{run}.pth', map_location='cpu')['model_state_dict'])
 
-    test_graphs = pickle.load(open(f'../results/{run}/splits.p', 'rb'))['train']
+    test_graphs = pickle.load(open(f'../results/{run}/splits.p', 'rb'))['test']
     print(test_graphs)
 
     acc = decoy_test(model, decoys, edge_map, 32, test_graphlist=test_graphs, test_graph_path=graph_dir)
