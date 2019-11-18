@@ -3,6 +3,7 @@
 """
 
 import itertools
+from random import shuffle
 
 import networkx as nx
 
@@ -45,9 +46,10 @@ def graph_ablations(G, mode):
 
     H = nx.Graph()
 
-    if mode == 'label-shuff':
+    if mode == 'label-shuffle':
         #assign a random label from the same graph to each edge.
-        labels = shuffle([_,_,d for G.edges(data=True)])
+        labels = [d['label'] for _,_,d in G.edges(data=True)]
+        shuffle(labels)
         for n1, n2, d in G.edges(data=True):
             H.add_edge(n1, n2, label=labels.pop())
         return H

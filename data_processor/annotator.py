@@ -230,3 +230,4 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
 
 
 if __name__ == '__main__':
+    annotate_all(graph_path="../data/pockets_nx", dump_path="../data/pockets_nx_label-shuffle", ablate="label-shuffle")
