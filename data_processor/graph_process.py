@@ -45,9 +45,25 @@ def graph_ablations(G, mode):
 
     H = nx.Graph()
 
+    if mode == 'label-shuff':
+        #assign a random label from the same graph to each edge.
+        labels = shuffle([_,_,d for G.edges(data=True)])
+        for n1, n2, d in G.edges(data=True):
+            H.add_edge(n1, n2, label=labels.pop())
+        return H
+
+        pass
+
     if mode == 'no-label':
         for n1, n2, d in G.edges(data=True):
             H.add_edge(n1, n2, label='X')
+        return H
+    if mode == 'wc-bb-nc':
+        for n1, n2, d in G.edges(data=True):
+            label = d['label']
+            if d['label'] not in ['CWW', 'B53']:
+                label = 'NC'
+            H.add_edge(n1, n2, label=label)
         return H
 
     if mode =='bb-only':

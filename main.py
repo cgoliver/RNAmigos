@@ -18,6 +18,8 @@ parser.add_argument('-ed','--embedding_dims', nargs='+', type=int, help='Dimensi
 parser.add_argument('-sf','--sim_function', type=str, help='Node similarity function (Supported Options: R_1, IDF).', default="R_1")
 parser.add_argument('-eo','--embed_only', type=int, help='Number of epochs to train embedding network before starting attributor. If -eo > num_epochs, no attributions trained. If < 0, attributor and embeddings always on. If 0 <= -eo <- num_epochs, switch attributor ON and embeddings OFF.', default=-1)
 parser.add_argument('-w', '--warm_start', type=str, default=None, help='Path to pre-trained model.')
+parser.add_argument('-rs', '--seed', type=int, default=0, help='Random seed to use (if > 0, else no seed is set).')
+
 args = parser.parse_args()
 
 print(f"OPTIONS USED: {args}")
@@ -26,6 +28,10 @@ import torch
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
+if args.seed > 0:
+    torch.manual_seed(args.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 # Homemade modules
 if args.timed:
@@ -151,6 +157,9 @@ print(f'Saving result in {name}')
 
 
 import numpy as np
+
+if args.seed > 0:
+    np.random.seed(args.seed)
 
 all_graphs = np.array(test_loader.dataset.dataset.all_graphs)
 test_inds = test_loader.dataset.indices

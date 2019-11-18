@@ -78,10 +78,16 @@ def ligand_binding(lig_dict_path, dump_path):
     except:
         pass
 
+    done_pdbs = {f.split('_')[0] for f in os.listdir(dump_path)}
+
     for pdbid, ligs in tqdm(lig_dict.items()):
         pdbid =  pdbid.split(".")[0]
+        if pdbid in done_pdbs:
+            continue
         try:
             pdb_graph = pickle.load(open(f'../data/RNA_Graphs/{pdbid}.pickle', 'rb'))
+            print(f"new guy: {pdbid}")
+            continue
             for lig in ligs:
                 get_pocket_graph(f'../data/all_rna_prot_lig_2019/{pdbid}.cif', lig, 
                                 pdb_graph, dump_path=dump_path)
@@ -92,5 +98,5 @@ def ligand_binding(lig_dict_path, dump_path):
 
 if __name__ == "__main__":
     #take all ligands with 8 angstrom sphere and 0.6 RNA concentration, build a graph for each.
-    ligand_binding('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_bb-only')
+    ligand_binding('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx')
     pass

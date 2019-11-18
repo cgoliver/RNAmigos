@@ -230,4 +230,3 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
 
 
 if __name__ == '__main__':
-    annotate_all(dump_path='../data/annotated/pockets_nx_no-label', graph_path='../data/pockets_nx', ablate='no-label')
