@@ -18,9 +18,15 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.spatial.distance import jaccard
 import torch
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.collections import PathCollection
+import seaborn as sns
+import pandas as pd
 
 from learning.rgcn import Model
 from post.utils import *
+
 
 def get_decoys(mode='pdb', annots_dir='../data/annotated/pockets_nx'):
     """
@@ -50,7 +56,7 @@ def distance_rank(active, pred, decoys, dist_func=jaccard):
         d = dist_func(active, lig)
         if d < pred_dist:
             rank += 1
-    return rank / (len(decoys) + 1)
+    return 1- (rank / (len(decoys) + 1))
 
 def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, test_graph_path="../data/annotated/pockets_nx"):
     """
@@ -84,30 +90,48 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, test_gra
         decs = decoys[true_id][1]
         rank = distance_rank(active, fp_pred, decs)
         ranks.append(rank)
-    return np.mean(ranks)
+    return np.mean(ranks), ranks
+
+def ablation_results():
+    modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle']
+    decoys = get_decoys()
+    ranks, methods = [], []
+    for m in modes:
+
+        if m == '':
+            graph_dir = "../data/annotated/pockets_nx"
+            run = 'small_no_rec_2'
+        else:
+            graph_dir = "../data/annotated/pockets_nx" + m
+            run = 'small_no_rec' + m
+        edge_map = get_edge_map(graph_dir)
+        num_edge_types = len(edge_map)
+
+
+        dims = [32] * 3
+        # dims = [32]*6
+        attributor_dims = [32, 166]
+
+        model = Model(dims=dims, attributor_dims=attributor_dims, num_rels=num_edge_types, num_bases=-1)
+        model.load_state_dict(torch.load(f'../trained_models/{run}/{run}.pth', map_location='cpu')['model_state_dict'])
+
+        graph_ids = pickle.load(open(f'../results/{run}/splits.p', 'rb'))
+
+        acc, ranks_this  = decoy_test(model, decoys, edge_map, 32, test_graphlist=graph_ids['test'], test_graph_path=graph_dir)
+        ranks.extend(ranks_this)
+        methods.extend([m]*len(ranks_this))
+        print("test", 1-acc)
+
+
+    df = pd.DataFrame({'rank': ranks, 'method':methods})
+    ax = sns.violinplot(x="method", y="rank", data=df, color='0.8')
+    for artist in ax.lines:
+        artist.set_zorder(10)
+    for artist in ax.findobj(PathCollection):
+        artist.set_zorder(11)
+    sns.stripplot(data=df, x='method', y='rank', jitter=True, alpha=0.6)
+    plt.savefig("../tex/Figs/violins_gcn.pdf", format="pdf")
+    plt.show()
 
 if __name__ == "__main__":
-    decoys = get_decoys()
-
-    graph_dir = "../data/annotated/pockets_nx"
-    # graph_dir = "../data/annotated/pockets_nx_bb-only"
-    # graph_dir = "../data/annotated/pockets_nx_wc-bb"
-    graph_dir = "../data/pockets_nx_label-shuffle"
-    run = 'small_no_rec_label-shuffle'
-    edge_map = get_edge_map(graph_dir)
-    print(edge_map)
-    num_edge_types = len(edge_map)
-
-
-    dims = [32] * 3
-    # dims = [32]*6
-    attributor_dims = [32, 166]
-
-    model = Model(dims=dims, attributor_dims=attributor_dims, num_rels=num_edge_types, num_bases=-1)
-    model.load_state_dict(torch.load(f'../trained_models/{run}/{run}.pth', map_location='cpu')['model_state_dict'])
-
-    test_graphs = pickle.load(open(f'../results/{run}/splits.p', 'rb'))['test']
-    print(test_graphs)
-
-    acc = decoy_test(model, decoys, edge_map, 32, test_graphlist=test_graphs, test_graph_path=graph_dir)
-    print(acc)
+    ablation_results()
