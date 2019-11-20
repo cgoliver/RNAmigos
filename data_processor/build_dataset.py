@@ -14,8 +14,8 @@ from Bio.PDB import *
 from tqdm import tqdm
 
 from tools.rna_draw import *
-from rna_classes import *
-from graph_process import *
+from .rna_classes import *
+from .graph_process import *
 
 faces = ['W', 'S', 'H']
 orientations = ['C', 'T']
@@ -60,7 +60,10 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph, ablate=None, dump_pat
 
     #kill some edges for ablation controls
 
-    nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}.nx"))
+    if dump_path:
+        nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}.nx"))
+
+    return G
 
     pass
 

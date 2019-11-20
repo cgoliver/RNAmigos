@@ -24,7 +24,6 @@ def nx_to_dgl(graph, edge_map, embed_dim):
         Networkx graph to DGL.
     """
 
-    graph,_,_,_ = pickle.load(open(graph, 'rb'))
     one_hot = {edge: edge_map[label] for edge, label in (nx.get_edge_attributes(graph, 'label')).items()}
     nx.set_edge_attributes(graph, name='one_hot', values=one_hot)
     one_hot = {edge: torch.tensor(edge_map[label]) for edge, label in (nx.get_edge_attributes(graph, 'label')).items()}
