@@ -14,10 +14,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import dgl.function as fn
+from dgl.nn.pytorch.glob import SumPooling
 from functools import partial
 import dgl
 from dgl import mean_nodes
-
 
 class RGCNLayer(nn.Module):
     def __init__(self, in_feat, out_feat, num_rels, num_bases=-1, bias=None,
@@ -91,6 +91,42 @@ class RGCNLayer(nn.Module):
         # g.ndata['h'] = g.ndata.pop('other')
 
 
+class GATLayer(nn.Module):
+    def __init__(self, in_dim, out_dim):
+        super(GATLayer, self).__init__()
+        # equation (1)
+        self.fc = nn.Linear(in_dim, out_dim, bias=False)
+        # equation (2)
+        self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
+
+    def edge_attention(self, edges):
+        # edge UDF for equation (2)
+        z2 = torch.cat([edges.src['z'], edges.dst['z']], dim=1)
+        a = self.attn_fc(z2)
+        return {'e': F.leaky_relu(a)}
+
+    def message_func(self, edges):
+        # message UDF for equation (3) & (4)
+        return {'z': edges.src['z'], 'e': edges.data['e']}
+
+    def reduce_func(self, nodes):
+        # reduce UDF for equation (3) & (4)
+        # equation (3)
+        alpha = F.softmax(nodes.mailbox['e'], dim=1)
+        # equation (4)
+        h = torch.sum(alpha * nodes.mailbox['z'], dim=1)
+        return {'h': h}
+
+    def forward(self, g, h):
+        # equation (1)
+        z = self.fc(h)
+        g.ndata['z'] = z
+        # equation (2)
+        g.apply_edges(self.edge_attention)
+        # equation (3) & (4)
+        g.update_all(self.message_func, self.reduce_func)
+        return g.ndata.pop('h')
+
 class Attributor(nn.Module):
     def __init__(self, dims):
         super(Attributor, self).__init__()
@@ -119,29 +155,32 @@ class Attributor(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-
 ###############################################################################
 # Define full R-GCN model
 # ~~~~~~~~~~~~~~~~~~~~~~~
 
 class Model(nn.Module):
-    def __init__(self, dims, attributor_dims, num_rels, num_bases=-1):
+    def __init__(self, dims, attributor_dims, num_rels, attention=True, num_bases=-1):
         super(Model, self).__init__()
         # self.num_nodes = num_nodes
         self.dims = dims
         self.num_rels = num_rels
         self.num_bases = num_bases
         self.attributor_dims = attributor_dims
+        self.attention = attention
 
         # create rgcn layers
         self.build_model()
 
+
+        self.attn = GATLayer(in_dim=self.dims[-1], out_dim=self.dims[-1])
+        self.pool = SumPooling()
         if self.attributor_dims is not None:
             self.num_modules = attributor_dims[-1]
             self.dimension_embedding = dims[-1]
 
-            #  create attributor
-            self.attributor = Attributor(attributor_dims)
+        # create attributor
+        self.attributor = Attributor(attributor_dims)
 
     def build_model(self):
         self.layers = nn.ModuleList()
@@ -158,6 +197,9 @@ class Model(nn.Module):
         # print('last',last_hidden,last)
         self.layers.append(h2o)
 
+    def build_gat_layer(self, in_dim, out_dim):
+        return GATLayer(in_dim, out_dim)
+
     def build_hidden_layer(self, in_dim, out_dim):
         return RGCNLayer(in_dim, out_dim, self.num_rels, self.num_bases,
                          activation=F.relu)
@@ -169,10 +211,8 @@ class Model(nn.Module):
     def forward(self, g):
         # print('data', g.edata['one_hot'].size())
         for layer in self.layers:
-            # print(g.ndata['h'].size())
             layer(g)
-            # print(g.ndata['h'].size())
-        g_emb = mean_nodes(g, 'h')
-        attributions = self.attributor(g_emb)
-        del g_emb
-        return g.ndata['h'], attributions
+        attention = self.attn(g,g.ndata['h'])
+        g_emb = self.pool(g,attention)
+        out = self.attributor(g_emb)
+        return attention, out

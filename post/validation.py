@@ -9,8 +9,7 @@ import os
 import pickle
 import math
 import random
-from random import choice
-from random import shuffle
+from random import choice, shuffle
 from tqdm import tqdm
 import networkx as nx
 import numpy as np
@@ -85,6 +84,7 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
         :return: enrichment score
     """
     ranks = []
+    sims = []
 
     if test_graphlist is None:
         test_graphlist = os.listdir(test_graph_path)
@@ -106,8 +106,10 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
         active = decoys[true_id][0]
         decs = decoys[true_id][1]
         rank = distance_rank(active, fp_pred, decs)
+        sim = jaccard(active, fp_pred)
         ranks.append(rank)
-    return ranks
+        sims.append(sim)
+    return ranks, sims
 
 def ablation_results():
     modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle']
@@ -131,10 +133,41 @@ def ablation_results():
         shuffle = False
         if m == 'pair-shuffle':
             shuffle = True
-        ranks_this  = decoy_test(model, decoys, edge_map, len(num_edge_types), shuffle=shuffle, test_graphlist=graph_ids['test'], test_graph_path=graph_dir)
+        ranks_this,sims_this  = decoy_test(model, decoys, edge_map, embed_dim, shuffle=shuffle, test_graphlist=graph_ids['test'], test_graph_path=graph_dir)
+        test_ligs = []
         ranks.extend(ranks_this)
         methods.extend([m]*len(ranks_this))
-
+        # plt.scatter(ranks_this, sims_this)
+        # plt.xlabel("ranks")
+        # plt.ylabel("tanimoto")
+        # plt.show()
+        # sns.distplot(sims_this)
+        # plt.xlabel("tanimoto")
+        # plt.show()
+        rank_cut = 0.8
+        cool = [graph_ids['test'][i] for i,(d,r) in enumerate(zip(sims_this, ranks_this)) if d <0.4 and r > 0.8]
+        print(cool, len(ranks_this))
+        #4v6q_#0:BB:FME:3001.nx_annot.p
+        test_ligs = set([f.split(":")[2] for f in graph_ids['test']])
+        train_ligs = set([f.split(":")[2] for f in graph_ids['train']])
+        print(test_ligs - train_ligs)
+        points = []
+        tot = len([x for x in ranks_this if x >= rank_cut])
+        for sim_cut in np.arange(0,1.1,0.1):
+            pos = 0
+            for s,r in zip(sims_this, ranks_this):
+                if s < sim_cut and r > rank_cut:
+                    pos += 1
+            points.append(pos / tot)
+        from sklearn.metrics import auc
+    # plt.title(f"Top 20% Accuracy {auc(np.arange(0, 1.1, 0.1), points)}, {m}")
+        plt.plot(points, label=m)
+    plt.plot([x for x in np.arange(0,1.1, 0.1)], '--')
+    plt.ylabel("Positives")
+    plt.xlabel("Distance threshold")
+    plt.xticks(np.arange(10), [0, 0.1, 0.2, 0.3, 0.4, 0.5,0.6, 0.7, 0.9, 1.0])
+    plt.legend()
+    plt.show()
 
     df = pd.DataFrame({'rank': ranks, 'method':methods})
     ax = sns.violinplot(x="method", y="rank", data=df, color='0.8')
@@ -143,7 +176,7 @@ def ablation_results():
     for artist in ax.findobj(PathCollection):
         artist.set_zorder(11)
     sns.stripplot(data=df, x='method', y='rank', jitter=True, alpha=0.6)
-    plt.savefig("../tex/Figs/violins_gcn_2.pdf", format="pdf")
+    # plt.savefig("../tex/Figs/violins_gcn_2.pdf", format="pdf")
     plt.show()
 
 def structure_scanning(pdb, ligname, graph, model, edge_map, embed_dim):
@@ -213,12 +246,12 @@ def scanning_analyze():
             dists.append(euclidean(r_center, lig_c))
             jaccards.append(jaccard(true_fp, fp))
         plt.title(f)
-        plt.scatter(dists, jaccards)
+        plt.distplot(dists, jaccards)
         plt.xlabel("dist to binding site")
         plt.ylabel("dist to fp")
         plt.show()
     pass
 
 if __name__ == "__main__":
-    scanning_analyze()
-    # ablation_results()
+    # scanning_analyze()
+    ablation_results()

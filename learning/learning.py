@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 if __name__ == '__main__':
     sys.path.append('../')
 
+from learning.attn import get_attention_map 
 
 def send_graph_to_device(g, device):
     """
@@ -95,8 +96,8 @@ def test(model, test_loader, device, reconstruction_lam, motif_lam):
         del reconstruction_loss
         del motif_loss
 
-    torch.cuda.empty_cache()
-    torch.cuda.synchronize()
+    # torch.cuda.empty_cache()
+    # torch.cuda.synchronize()
     return test_loss / test_size, motif_loss_tot / test_size, recons_loss_tot / test_size
 
 def compute_loss(model, attributions, out, K, fp,
@@ -199,6 +200,23 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
                                                                              out=out, K=K, device=device,
                                                                              reconstruction_lam=reconstruction_lam,
                                                                              motif_lam=motif_lam)
+            if(batch_idx==0):
+                # Att has shape h, dest_nodes, src_nodes
+                # Sum of attention[1]=1 (attn weights sum to one for destination node)
+                
+                # Transform graph to RDKit molecule for nice visualization
+                graphs = dgl.unbatch(graph)
+                g0=graphs[0]
+                n_nodes = len(g0.nodes)
+                att= get_attention_map(g0, src_nodes=g0.nodes(), dst_nodes=g0.nodes(), h=1)
+                att_g0 = att[0] # get attn weights only for g0
+                
+                # Select atoms with highest attention weights and plot them 
+                tops = np.unique(np.where(att_g0>0.55)) # get top atoms in attention
+                print(tops)
+                # mol = nx_to_mol(g0, rem, ram, rchim, rcham)
+                # img=highlight(mol,list(tops))f batch_idx == 0:
+
             del K
             del fp
             del graph
@@ -210,6 +228,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
             # Metrics
             batch_loss = loss.item()
             running_loss += batch_loss
+
 
 
             # running_corrects += labels.eq(target.view_as(out)).sum().item()
@@ -235,8 +254,8 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
             del reconstruction_loss
             del motif_loss
 
-        torch.cuda.empty_cache()
-        torch.cuda.synchronize()
+        # torch.cuda.empty_cache()
+        # torch.cuda.synchronize()
         # Log training metrics
         train_loss = running_loss / num_batches
         writer.add_scalar("Training epoch loss", train_loss, epoch)
@@ -247,8 +266,8 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
         # Test phase
         test_loss, motif_loss, reconstruction_loss = test(model, test_loader, device, reconstruction_lam, motif_lam)
 
-        torch.cuda.empty_cache()
-        torch.cuda.synchronize()
+        # torch.cuda.empty_cache()
+        # torch.cuda.synchronize()
 
         writer.add_scalar("Test loss during training", test_loss, epoch)
         writer.add_scalar("Test reconstruction loss", reconstruction_loss, epoch)
