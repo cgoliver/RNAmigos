@@ -31,14 +31,6 @@ def graph_draw(G_p, save=False, show=False, node_colors=[], title="", color='gre
     #place loops in sequence order
     print(G_p.nodes.data())
     loop_labels = {}
-    for node, info in G_p.nodes.data():
-        if node[0] in ['L', 'LOOP']:
-            neighbors = [n[1] for n in G_p[node]]
-            idx = int((neighbors[0] + neighbors[1]) / 2)
-            loop_labels[node] = (list(G_p[node])[0][0], idx, node[2])
-            G_p.nodes[node]['nt'] = 'L'
-        if G_p.nodes[node]['nt'] == 'LOOP':
-            G_p.nodes[node]['nt'] = 'L'
 
     G_p = nx.relabel_nodes(G_p, loop_labels)
     G = nx.DiGraph()
