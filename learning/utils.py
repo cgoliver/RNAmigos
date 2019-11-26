@@ -2,6 +2,21 @@ import os
 import io
 import numpy as np
 
+import dgl
+import networkx as nx
+
+
+def dgl_to_nx(g_dgl, edge_map):
+    hot_to_label = {v:k for k,v in edge_map.items()}
+    print(hot_to_label)
+    hots = g_dgl.edata['one_hot'].detach().numpy()
+    G = dgl.to_networkx(g_dgl) 
+    labels = {e:hot_to_label[i] for i,e in zip(hots, G.edges())}
+    print(labels)
+    nx.set_edge_attributes(G,labels, 'label')
+    print(G.nodes())
+    G = nx.to_undirected(G)
+    return G
 
 def mkdirs(name, permissive=True):
     """

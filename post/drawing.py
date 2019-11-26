@@ -31,10 +31,11 @@ labels = {
 make_label = lambda s: labels[s[:2]] + labels[s[0::2]] if len(set(s[1:])) == 2\
     else labels[s[:2]]
 
-def rna_draw(nx_g, title="", node_colors=None, num_clusters=None):
-    pos = circular_layout(nx_g)
+def rna_draw(nx_g, title="", highlight_edges=None, node_colors=None, num_clusters=None):
+    # pos = circular_layout(nx_g)
+    pos = nx.spring_layout(nx_g)
 
-    nodes = nx.draw_networkx_nodes(nx_g, pos, node_color='grey', linewidths=2)
+    nodes = nx.draw_networkx_nodes(nx_g, pos, node_size=150,  node_color='grey', linewidths=2)
 
     nodes.set_edgecolor('black')
 
@@ -56,12 +57,16 @@ def rna_draw(nx_g, title="", node_colors=None, num_clusters=None):
 
     nx.draw_networkx_edges(nx_g, pos, edgelist=non_bb_edges)
     nx.draw_networkx_edges(nx_g, pos, edgelist=bb_edges, width=2)
+
+    if not highlight_edges is None:
+        nx.draw_networkx_edges(nx_g, pos, edgelist=highlight_edges, edge_color='y', width=8, alpha=0.5)
+
     nx.draw_networkx_edge_labels(nx_g, pos, font_size=16,
                                  edge_labels=edge_labels)
     plt.axis('off')
-    plt.savefig('fmn_' + title + '.png', format='png')
-    plt.clf()
-    # plt.show()
+    # plt.savefig('fmn_' + title + '.png', format='png')
+    # plt.clf()
+    plt.show()
 
 def ablation_draw():
     g_name = "1fmn_#0.1:A:FMN:36.nx_annot.p"

@@ -151,7 +151,7 @@ tanimoto_d = Decimal('0.9')
 MW_t = 25
 RB_t = 1
 mind = 36
-maxd = mind
+maxd = 50 
 
 #Dict of ZINC subsets
 ZINC_subsets = {
@@ -442,7 +442,7 @@ def parse_db_files(filelist):
     with open(filelist[0]) as mol_f:
         for s in mol_f:
             try:
-                mol = pybel.readstring('smi', s.split()[0])
+                mol = pybel.readstring('smi', s.split(",")[1])
             except:
                 continue
             if mol:
@@ -721,5 +721,3 @@ def find_decoys(
     #Last, special yield:
     yield ('result',  ligands_dict,  [outputfile, minreached])
 
-for d in find_decoys(query_files=['hi.txt'], db_files=['all_smiles.sm']):
-    print(d)

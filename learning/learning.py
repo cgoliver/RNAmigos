@@ -13,7 +13,9 @@ import matplotlib.pyplot as plt
 if __name__ == '__main__':
     sys.path.append('../')
 
-from learning.attn import get_attention_map 
+from learning.attn import get_attention_map
+from learning.utils import dgl_to_nx
+from post.drawing import rna_draw
 
 def send_graph_to_device(g, device):
     """
@@ -147,6 +149,8 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     :return:
     """
 
+    edge_map = train_loader.dataset.dataset.edge_map
+
     epochs_from_best = 0
     early_stop_threshold = 80
 
@@ -200,7 +204,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
                                                                              out=out, K=K, device=device,
                                                                              reconstruction_lam=reconstruction_lam,
                                                                              motif_lam=motif_lam)
-            if(batch_idx==0):
+            if(epoch > 10):
                 # Att has shape h, dest_nodes, src_nodes
                 # Sum of attention[1]=1 (attn weights sum to one for destination node)
                 
@@ -213,7 +217,11 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
                 
                 # Select atoms with highest attention weights and plot them 
                 tops = np.unique(np.where(att_g0>0.55)) # get top atoms in attention
-                print(tops)
+
+                g0 = dgl_to_nx(g0, edge_map)
+                nodelist = list(g0.nodes())
+                highlight_edges = list(g0.subgraph([nodelist[t] for t in tops]).edges())
+                rna_draw(g0, highlight_edges=highlight_edges)
                 # mol = nx_to_mol(g0, rem, ram, rchim, rcham)
                 # img=highlight(mol,list(tops))f batch_idx == 0:
 
