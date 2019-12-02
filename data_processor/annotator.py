@@ -222,7 +222,12 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
         print(f'failed on {(failed)} on {len(graphs)}')
         return failed
     for graph in tqdm(graphs, total=len(graphs)):
-        res = annotate_one((graph, graph_path, dump_path, fp_dict[lig_name(graph)], ablate))
+        try:
+            res = annotate_one((graph, graph_path, dump_path, fp_dict[lig_name(graph)], ablate))
+        except KeyError:
+            failed += 1
+            print("missing fingerprint: {lig_name(graph)}")
+            continue
         if res[0]:
             failed += 1
             print(f'failed on {graph}, this is the {failed}-th one on {len(graphs)}')
@@ -230,4 +235,4 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
 
 
 if __name__ == '__main__':
-    annotate_all(graph_path="../data/pockets_nx", dump_path="../data/pockets_nx_label-shuffle", ablate="label-shuffle")
+    annotate_all(parallel=False, graph_path="../data/pockets_nx_2", dump_path="../data/annotated/pockets_nx_2", ablate="")

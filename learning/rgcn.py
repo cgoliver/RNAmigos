@@ -173,8 +173,8 @@ class Model(nn.Module):
         self.build_model()
 
 
-        self.attn = GATLayer(in_dim=self.dims[-1], out_dim=self.dims[-1])
-        self.pool = SumPooling()
+        # self.attn = GATLayer(in_dim=self.dims[-1], out_dim=self.dims[-1])
+        # self.pool = SumPooling()
         if self.attributor_dims is not None:
             self.num_modules = attributor_dims[-1]
             self.dimension_embedding = dims[-1]
@@ -212,7 +212,10 @@ class Model(nn.Module):
         # print('data', g.edata['one_hot'].size())
         for layer in self.layers:
             layer(g)
-        attention = self.attn(g,g.ndata['h'])
-        g_emb = self.pool(g,attention)
+        # attention = self.attn(g,g.ndata['h'])
+        # g_emb = self.pool(g,attention)
+        # g_emb = self.pool(g,g.ndata['h'])
+        g_emb = mean_nodes(g, 'h')
         out = self.attributor(g_emb)
-        return attention, out
+        # return attention, out
+        return g.ndata.pop('h'), out

@@ -40,65 +40,31 @@ def smiles_dict(sdf_dir, include_ions=False, bits=False, fptype='FP2'):
     smiles['TAC'] = 'CN(C)C1[C@@H]2C[C@H]3C(=C(O)[C@]2(O)C(=O)C(C(N)=O)=C1O)C(=O)c1c(O)cccc1[C@@]3(C)O'
 
     return smiles
-def fp_dict(sdf_dir, include_ions=False, bits=False, fptype='FP2'):
+
+def fp_dict(smiles_file, include_ions=False, bits=False, fptype='FP2'):
     """
     Returns a dictionary where the key is a ligand ID and value is a 1024
     molecular fingerprint object.  """
+
+    nbits = {'maccs': 166, 'FP2': 1024}
     fps = {}
-    sdf_list = os.listdir(sdf_dir)
-    for s in tqdm(sdf_list):
-        sdf = os.path.join(sdf_dir, s)
-        mols = readfile("sdf", sdf)
-        mol_id = s.split("_")[0]
-        print(mol_id)
-        for m in mols:
-            # mol_id = m.data['ChemCompId']
-            if mol_id in fps:
-                continue
-            # mol_id = m.data["PUBCHEM_COMPOUND_CID"]
-            # mol_name = m.data['Name']
-            fps[mol_id] = m.calcfp(fptype=fptype)
+
+    with open(smiles_file, "r") as sms:
+        for s in sms:
+            smile, name = s.split()
+            mol = readstring('smi', smile)
+            fp = mol.calcfp(fptype=fptype)
+            if bits:
+                fp = index_to_vec(fp.bits, nbits=nbits[fptype])
+            fps[name] = fp
     #these ligands keep failing. hard code them
-    fps['GLY'] = readstring('smi', 'NCC(O)=O').calcfp(fptype=fptype)
-    fps['LYS'] = readstring('smi', 'N[C@@H](CCCC[NH3+])C(O)=O').calcfp(fptype=fptype)
-    fps['FME'] = readstring('smi', 'CSCC[C@H](NC=O)C(O)=O').calcfp(fptype=fptype)
-    fps['CTC'] = readstring('smi', 'CN(C)[C@H]1[C@@H]2C[C@H]3C(=C(O)[C@]2(O)C(=O)C(C(N)=O)=C1O)C(=O)c1c(O)ccc(Cl)c1[C@@]3(C)O').calcfp(fptype=fptype)
-    fps['TAC'] = readstring('smi', 'CN(C)C1[C@@H]2C[C@H]3C(=C(O)[C@]2(O)C(=O)C(C(N)=O)=C1O)C(=O)c1c(O)cccc1[C@@]3(C)O').calcfp(fptype=fptype)
-    if bits:
-        for k,v in fps.items():
-            if fptype == 'maccs':
-                fps[k] = index_to_vec(v.bits, nbits=166)
-            else:
-                    fps[k] = index_to_vec(v.bits)
+    # fps['GLY'] = readstring('smi', 'NCC(O)=O').calcfp(fptype=fptype)
+    # fps['LYS'] = readstring('smi', 'N[C@@H](CCCC[NH3+])C(O)=O').calcfp(fptype=fptype)
+    # fps['FME'] = readstring('smi', 'CSCC[C@H](NC=O)C(O)=O').calcfp(fptype=fptype)
+    # fps['CTC'] = readstring('smi', 'CN(C)[C@H]1[C@@H]2C[C@H]3C(=C(O)[C@]2(O)C(=O)C(C(N)=O)=C1O)C(=O)c1c(O)ccc(Cl)c1[C@@]3(C)O').calcfp(fptype=fptype)
+    # fps['TAC'] = readstring('smi', 'CN(C)C1[C@@H]2C[C@H]3C(=C(O)[C@]2(O)C(=O)C(C(N)=O)=C1O)C(=O)c1c(O)cccc1[C@@]3(C)O').calcfp(fptype=fptype)
     return fps
 
-def _fp_dict(sdf_file, include_ions=False, bits=False, fptype='FP2'):
-    """
-    Returns a dictionary where the key is a ligand ID and value is a 1024
-    molecular fingerprint object.  """
-    fps = {}
-    fails = 0
-    failnames = []
-    with open(sdf_file, 'r') as sdf_f:
-        for s in sdf_f:
-            try:
-                smile,name = s.split()[:2]
-                fps[name] = readstring('smi', smile).calcfp(fptype=fptype)
-            except:
-                failnames.append(s)
-                print(f"failed on {name}")
-                fails += 1
-    #these ligands keep failing. hard code them
-    fps['GLY'] = readstring('smi', 'NCC(O)=O').calcfp(fptype=fptype)
-    fps['LYS'] = readstring('smi', 'N[C@@H](CCCC[NH3+])C(O)=O').calcfp(fptype=fptype)
-    fps['FME'] = readstring('smi', 'CSCC[C@H](NC=O)C(O)=O').calcfp(fptype=fptype)
-    if bits:
-        for k,v in fps.items():
-            if fptype == 'maccs':
-                fps[k] = index_to_vec(v.bits, nbits=166)
-            else:
-                    fps[k] = index_to_vec(v.bits)
-    return fps
 def index_to_vec(fp, nbits=1024):
     """
     Convert list of 1 indices to numpy binary vector.
@@ -113,9 +79,8 @@ def index_to_vec(fp, nbits=1024):
 
 if __name__ == "__main__":
     # all_ligs = fp_dict("../data/ligs", bits=True, fptype='maccs')
-    smiles = smiles_dict("../data/ligs")
-    pickle.dump(smiles, open("../data/smiles_ligs_dict.p", "wb"))
-    # all_ligs = _fp_dict("../data/all_smiles.sm", bits=True, fptype='maccs')
-    # all_ligs = {**all_ligs_pdb, **all_ligs}
-    # pickle.dump(all_ligs, open("../data/all_ligs_maccs.p", "wb"))
+    # smiles = smiles_dict("../data/ligs")
+    # pickle.dump(smiles, open("../data/smiles_ligs_dict.p", "wb"))
+    all_ligs = fp_dict("../data/pdb_rna_smiles.txt", bits=True, fptype='maccs')
+    pickle.dump(all_ligs, open("../data/all_ligs_maccs.p", "wb"))
     sys.exit()

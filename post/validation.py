@@ -27,6 +27,9 @@ from learning.rgcn import Model
 from rna_classes import *
 from post.utils import *
 
+from learning.attn import get_attention_map
+from learning.utils import dgl_to_nx
+from post.drawing import rna_draw
 
 def load_model(run, graph_dir):
     dims = [32] * 3
@@ -41,7 +44,7 @@ def load_model(run, graph_dir):
 
     return model, edge_map, dims[-1]
 
-def get_decoys(mode='pdb', annots_dir='../data/annotated/pockets_nx'):
+def get_decoys(mode='pdb', annots_dir='../data/annotated/pockets_nx_2'):
     """
     Build decoys set for validation.
     """
@@ -57,6 +60,8 @@ def get_decoys(mode='pdb', annots_dir='../data/annotated/pockets_nx'):
         decoy_list = list(fp_dict.values())
         decoy_dict = {k:(v, decoy_list) for k,v in fp_dict.items()}
         return decoy_dict
+    if mode == 'dude':
+        return pickle.load(open('../data/decoys_zinc.p', 'rb'))
     pass
 def distance_rank(active, pred, decoys, dist_func=jaccard):
     """
@@ -97,10 +102,31 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
         except:
             print(f">> failed on {g_path}")
             continue
+        try:
+            decoys[true_id]
+        except KeyError:
+            print("missing fp", true_id)
+            continue
         nx_graph, dgl_graph = nx_to_dgl(g, edge_map, embed_dim)
         _,fp_pred= model(dgl_graph)
+
+        if False:
+                n_nodes = len(dgl_graph.nodes)
+                att= get_attention_map(dgl_graph, src_nodes=dgl_graph.nodes(), dst_nodes=dgl_graph.nodes(), h=1)
+                att_g0 = att[0] # get attn weights only for g0
+                
+                # Select atoms with highest attention weights and plot them 
+                tops = np.unique(np.where(att_g0>0.51)) # get top atoms in attention
+                print(f"tops {tops}")
+
+                g0 = dgl_to_nx(dgl_graph, edge_map)
+                nodelist = list(g0.nodes())
+                highlight_edges = list(g0.subgraph([nodelist[t] for t in tops]).edges())
+                rna_draw(g0, highlight_edges=highlight_edges)
+
         fp_pred = fp_pred.detach().numpy() > 0.5
-        # fp_random = np.random.choice([0, 1], size=(166,), p=[1./2, 1./2])
+        # print(fp_pred)
+        # fp_pred = np.random.choice([0, 1], size=(166,), p=[1./2, 1./2])
         if shuffle:
             true_id = choice(ligs)
         active = decoys[true_id][0]
@@ -113,8 +139,11 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
 
 def ablation_results():
     modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle']
-    decoys = get_decoys()
+    modes = ['']
+    decoys = get_decoys(mode='pdb')
     ranks, methods = [], []
+    graph_dir = '../data/annotated/pockets_nx_2'
+    # run = "pockets_2"
     for m in modes:
 
         if m in ['', 'pair-shuffle']:
@@ -137,14 +166,23 @@ def ablation_results():
         test_ligs = []
         ranks.extend(ranks_this)
         methods.extend([m]*len(ranks_this))
-        # plt.scatter(ranks_this, sims_this)
-        # plt.xlabel("ranks")
-        # plt.ylabel("tanimoto")
-        # plt.show()
-        # sns.distplot(sims_this)
-        # plt.xlabel("tanimoto")
-        # plt.show()
-        rank_cut = 0.8
+
+        #decoy distance distribution
+        dists = []
+        for _,(active, decs) in decoys.items():
+            for d in decs:
+                dists.append(jaccard(active, d))
+        plt.scatter(ranks_this, sims_this)
+        plt.xlabel("ranks")
+        plt.ylabel("distance")
+        plt.show()
+        sns.distplot(dists, label='decoy distance')
+        sns.distplot(sims_this, label='pred distance')
+        plt.xlabel("distance")
+        plt.legend()
+        plt.show()
+
+        rank_cut = 0.9
         cool = [graph_ids['test'][i] for i,(d,r) in enumerate(zip(sims_this, ranks_this)) if d <0.4 and r > 0.8]
         print(cool, len(ranks_this))
         #4v6q_#0:BB:FME:3001.nx_annot.p
@@ -160,14 +198,14 @@ def ablation_results():
                     pos += 1
             points.append(pos / tot)
         from sklearn.metrics import auc
-    # plt.title(f"Top 20% Accuracy {auc(np.arange(0, 1.1, 0.1), points)}, {m}")
+        plt.title(f"Top 20% Accuracy {auc(np.arange(0, 1.1, 0.1), points)}, {m}")
         plt.plot(points, label=m)
-    plt.plot([x for x in np.arange(0,1.1, 0.1)], '--')
-    plt.ylabel("Positives")
-    plt.xlabel("Distance threshold")
-    plt.xticks(np.arange(10), [0, 0.1, 0.2, 0.3, 0.4, 0.5,0.6, 0.7, 0.9, 1.0])
-    plt.legend()
-    plt.show()
+        plt.plot([x for x in np.arange(0,1.1, 0.1)], '--')
+        plt.ylabel("Positives")
+        plt.xlabel("Distance threshold")
+        plt.xticks(np.arange(10), [0, 0.1, 0.2, 0.3, 0.4, 0.5,0.6, 0.7, 0.9, 1.0])
+        plt.legend()
+        plt.show()
 
     df = pd.DataFrame({'rank': ranks, 'method':methods})
     ax = sns.violinplot(x="method", y="rank", data=df, color='0.8')

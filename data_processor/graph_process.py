@@ -13,7 +13,8 @@ orientations = ['C', 'T']
 valid_edges = set(['B53'] + [orient + e1 + e2 for e1, e2 in itertools.product(faces, faces) for orient in orientations])
 
 def remove_self_loops(G):
-    G.remove_edges_from([(n,n) for n in G.nodes()])
+    selfs = list(nx.selfloop_edges(G))
+    G.remove_edges_from(selfs)
 
 def remove_non_standard_edges(G):
     remove = []
@@ -25,13 +26,28 @@ def remove_non_standard_edges(G):
 def to_orig(G):
     remove_self_loops(G)
     # remove_non_standard_edges(G)
+    # remove_non_standard_edges(G)
+    # remove_non_standard_edges(G)
     H = nx.Graph()
     for n1, n2, d in G.edges(data=True):
         label = d['label']
         if label in valid_edges:
             H.add_edge(n1, n2, label=d['label'])
+    # for n,d in G.nodes(data=True):
+        # if n in H.nodes():
+            # nx.set_node_attributes(H, 'nucleotides', {n:d['nucleotide']})
     return H
 
+def kill_islands(G, min_size=4):
+    """
+        Kill components that are too small
+    """
+    remove = []
+    for comp in nx.connected_components(G):
+        if len(comp) < min_size:
+            remove.extend(list(comp))
+        pass
+    G.remove_nodes_from(remove)
 def graph_ablations(G, mode):
     """
         Remove edges with certain labels depending on the mode.
@@ -87,7 +103,6 @@ def find_node(graph, chain, pos):
 def has_NC(G):
     for n1, n2, d in G.edges(data=True):
         if d['label'] not in ['CWW', 'B53']:
-            print(d['label'])
             return True
     return False
 
@@ -134,7 +149,8 @@ def dangle_trim(G):
             # node_deg = degree(i, G, current_nodeset)
             # print(node_deg)
             # if node_deg == 2 and is_backbone(n, G):
-            if cur_G.degree(n) == 1 and is_backbone(n, cur_G) or cur_G.degree(n) == 0:
+            # if cur_G.degree(n) == 1 and is_backbone(n, cur_G) or cur_G.degree(n) == 0:
+            if cur_G.degree(n) == 1  or cur_G.degree(n) == 0:
                 dangles.append(n)
         if len(dangles) == 0:
             break

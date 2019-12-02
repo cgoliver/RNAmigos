@@ -204,7 +204,8 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
                                                                              out=out, K=K, device=device,
                                                                              reconstruction_lam=reconstruction_lam,
                                                                              motif_lam=motif_lam)
-            if(epoch > 10):
+            print(epoch)
+            if True:
                 # Att has shape h, dest_nodes, src_nodes
                 # Sum of attention[1]=1 (attn weights sum to one for destination node)
                 
