@@ -61,7 +61,7 @@ def print_gradients(model):
         name, p = param
         print(name, p.grad)
     pass
-def test(model, test_loader, device, reconstruction_lam, motif_lam):
+def test(model, test_loader, device):
     """
     Compute accuracy and loss of model over given dataset
     :param model:
@@ -81,52 +81,19 @@ def test(model, test_loader, device, reconstruction_lam, motif_lam):
         graph = send_graph_to_device(graph, device)
 
         # Do the computations for the forward pass
-        out, attributions = model(graph)
-        loss, reconstruction_loss, motif_loss = compute_loss(model=model, attributions=attributions, fp=fp,
-                                                                         out=out, K=K, device=device,
-                                                                         reconstruction_lam=reconstruction_lam,
-                                                                         motif_lam=motif_lam)
+        fp_pred = model(graph)
+        loss = model.compute_loss(fp, fp_pred)
         del K
         del fp
         del graph
 
-        recons_loss_tot += reconstruction_loss.item()
-        motif_loss_tot += motif_loss.item()
         test_loss += loss.item()
 
         del loss
-        del reconstruction_loss
-        del motif_loss
 
+    return test_loss / test_size
     # torch.cuda.empty_cache()
-    # torch.cuda.synchronize()
-    return test_loss / test_size, motif_loss_tot / test_size, recons_loss_tot / test_size
-
-def compute_loss(model, attributions, out, K, fp,
-        device, reconstruction_lam, motif_lam):
-    """
-    Compute the total loss and returns scalar value for each contribution of each term. Avoid overwriting loss terms
-    :param model:
-    :param attributions:
-    :param out:
-    :param K:
-    :param device:
-    :param reconstruction_lam:
-    :param motif_lam:
-    :return:
-    """
-
-    # reconstruction loss
-    K_predict = torch.norm(out[:, None] - out, dim=2, p=2)
-    reconstruction_loss = torch.nn.MSELoss()
-    reconstruction_loss = reconstruction_loss(K_predict, K)
-    motif_loss = torch.nn.BCELoss()
-    motif_loss = motif_loss(attributions, fp)
-
-
-    loss = reconstruction_lam * reconstruction_loss + motif_lam * motif_loss
-    return loss, reconstruction_loss, motif_loss
-
+    # torch.cuda.synchronize( test_loss / test_size
 
 def train_model(model, criterion, optimizer, device, train_loader, test_loader, save_path,
                 writer=None, num_epochs=25, wall_time=None,
@@ -191,40 +158,14 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
             # Get data on the devices
             batch_size = len(K)
-            K = K.to(device)
             fp = fp.to(device)
-            K = torch.ones(K.shape).to(device) - K
             graph = send_graph_to_device(graph, device)
 
             # Do the computations for the forward pass
-            out, attributions = model(graph)
+            fp_pred = model(graph)
 
             # Compute the loss with proper summation, solves the problem ?
-            loss, reconstruction_loss, motif_loss = compute_loss(model=model, attributions=attributions, fp=fp,
-                                                                             out=out, K=K, device=device,
-                                                                             reconstruction_lam=reconstruction_lam,
-                                                                             motif_lam=motif_lam)
-            print(epoch)
-            if True:
-                # Att has shape h, dest_nodes, src_nodes
-                # Sum of attention[1]=1 (attn weights sum to one for destination node)
-                
-                # Transform graph to RDKit molecule for nice visualization
-                graphs = dgl.unbatch(graph)
-                g0=graphs[0]
-                n_nodes = len(g0.nodes)
-                att= get_attention_map(g0, src_nodes=g0.nodes(), dst_nodes=g0.nodes(), h=1)
-                att_g0 = att[0] # get attn weights only for g0
-                
-                # Select atoms with highest attention weights and plot them 
-                tops = np.unique(np.where(att_g0>0.55)) # get top atoms in attention
-
-                g0 = dgl_to_nx(g0, edge_map)
-                nodelist = list(g0.nodes())
-                highlight_edges = list(g0.subgraph([nodelist[t] for t in tops]).edges())
-                rna_draw(g0, highlight_edges=highlight_edges)
-                # mol = nx_to_mol(g0, rem, ram, rchim, rcham)
-                # img=highlight(mol,list(tops))f batch_idx == 0:
+            loss = model.compute_loss(fp, fp_pred)
 
             del K
             del fp
@@ -254,14 +195,8 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
                 # tensorboard logging
                 writer.add_scalar("Training batch loss", batch_loss,
                                   epoch * num_batches + batch_idx)
-                writer.add_scalar("Training reconstruction loss", reconstruction_loss.item(),
-                                  epoch * num_batches + batch_idx)
-                writer.add_scalar("Training motif loss", motif_loss.item(),
-                                  epoch * num_batches + batch_idx)
 
             del loss
-            del reconstruction_loss
-            del motif_loss
 
         # torch.cuda.empty_cache()
         # torch.cuda.synchronize()
@@ -273,14 +208,13 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
         # writer.log_scalar("Train accuracy during training", train_accuracy, epoch)
 
         # Test phase
-        test_loss, motif_loss, reconstruction_loss = test(model, test_loader, device, reconstruction_lam, motif_lam)
+        test_loss = test(model, test_loader, device)
+        print(">> test loss ", test_loss)
 
         # torch.cuda.empty_cache()
         # torch.cuda.synchronize()
 
         writer.add_scalar("Test loss during training", test_loss, epoch)
-        writer.add_scalar("Test reconstruction loss", reconstruction_loss, epoch)
-        writer.add_scalar("Test motif loss", motif_loss, epoch)
 
         # writer.log_scalar("Test accuracy during training", test_accuracy, epoch)
 
@@ -309,8 +243,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
             if time_elapsed * (1 + 1 / (epoch + 1)) > .95 * wall_time * 3600:
                 break
         del test_loss
-        del reconstruction_loss
-        del motif_loss
 
     return best_loss
 
@@ -347,3 +279,4 @@ if __name__ == "__main__":
 #     '--model_path', default='results/base_wr_lr01best_model.pth')
 # args = parser.parse_args()
 # make_predictions(args.data_dir, args.out_dir, args.model_path)
+

@@ -125,6 +125,7 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
                 rna_draw(g0, highlight_edges=highlight_edges)
 
         fp_pred = fp_pred.detach().numpy() > 0.5
+        print(fp_pred)
         # print(fp_pred)
         # fp_pred = np.random.choice([0, 1], size=(166,), p=[1./2, 1./2])
         if shuffle:
@@ -137,21 +138,34 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
         sims.append(sim)
     return ranks, sims
 
+def generic_fp(annot_dir):
+    """
+        Compute generic fingerprint by majority over dimensions.
+        TODO: Finish this
+    """
+    fps = []
+    for g in os.listdir(annot_dir):
+        _,_,fp,_ = pickle.load(open(os.path.join(annot_dir, g), 'rb'))
+        fps.append(fp)
+    consensus = np.unique(fps, axis=0)
+    pass
+    
 def ablation_results():
     modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle']
-    modes = ['']
+    modes = ['', 'pair-shuffle']
     decoys = get_decoys(mode='pdb')
     ranks, methods = [], []
     graph_dir = '../data/annotated/pockets_nx_2'
-    # run = "pockets_2"
+    graph_dir = '../data/annotated/pockets_nx'
+    run = "pockets_1_noatt_mean"
     for m in modes:
 
-        if m in ['', 'pair-shuffle']:
-            graph_dir = "../data/annotated/pockets_nx"
-            run = 'small_no_rec_2'
-        else:
-            graph_dir = "../data/annotated/pockets_nx" + m
-            run = 'small_no_rec' + m
+        # if m in ['', 'pair-shuffle']:
+            # graph_dir = "../data/annotated/pockets_nx"
+            # run = 'small_no_rec_2'
+        # else:
+            # graph_dir = "../data/annotated/pockets_nx" + m
+            # run = 'small_no_rec' + m
 
 
         model,edge_map,embed_dim = load_model(run, graph_dir)
