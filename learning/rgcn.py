@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import dgl.function as fn
-from dgl.nn.pytorch.glob import SumPooling
+from dgl.nn.pytorch.glob import SumPooling,GlobalAttentionPooling
 from functools import partial
 import dgl
 from dgl import mean_nodes
@@ -53,7 +53,7 @@ class Attributor(nn.Module):
 # Define full R-GCN model
 # ~~~~~~~~~~~~~~~~~~~~~~~
 class Model(nn.Module):
-    def __init__(self, dims, attributor_dims, num_rels, pool=SumPooling(), num_bases=-1):
+    def __init__(self, dims, attributor_dims, num_rels, pool='sum', num_bases=-1):
         """
 
         :param dims: the embeddings dimensions
@@ -71,7 +71,11 @@ class Model(nn.Module):
         self.num_rels = num_rels
         self.num_bases = num_bases
 
-        self.pool = pool
+        if pool == 'att':
+            pooling_gate_nn = nn.Linear(dims[-1], 1)
+            self.pool = GlobalAttentionPooling(pooling_gate_nn)
+        else:
+            self.pool = SumPooling()
         self.attributor = Attributor(attributor_dims)
 
         # create rgcn layers

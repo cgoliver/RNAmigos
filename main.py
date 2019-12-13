@@ -112,7 +112,7 @@ reconstruction_lam = args.reconstruction_lam
 
 model = Model(dims=dims, attributor_dims=attributor_dims,
               num_rels=loader.num_edge_types,
-              num_bases=-1)
+              num_bases=-1, pool='sum')
 
 #if pre-trained initialize matching layers
 if args.warm_start:

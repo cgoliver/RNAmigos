@@ -32,9 +32,9 @@ from learning.utils import dgl_to_nx
 from post.drawing import rna_draw
 
 def load_model(run, graph_dir):
-    dims = [32] * 3
+    dims = [4] * 3
     # dims = [32]*6
-    attributor_dims = [32, 166]
+    attributor_dims = [4, 166]
 
     edge_map = get_edge_map(graph_dir)
 
@@ -108,7 +108,7 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
             print("missing fp", true_id)
             continue
         nx_graph, dgl_graph = nx_to_dgl(g, edge_map, embed_dim)
-        _,fp_pred= model(dgl_graph)
+        fp_pred= model(dgl_graph)
 
         if False:
                 n_nodes = len(dgl_graph.nodes)
@@ -157,7 +157,7 @@ def ablation_results():
     ranks, methods = [], []
     graph_dir = '../data/annotated/pockets_nx_2'
     graph_dir = '../data/annotated/pockets_nx'
-    run = "pockets_1_noatt_mean"
+    run = "n"
     for m in modes:
 
         # if m in ['', 'pair-shuffle']:
