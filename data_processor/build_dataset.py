@@ -53,7 +53,7 @@ def graph_from_residues(full_graph, residues):
 
 def get_pocket_graph(pdb_structure_path, ligand_id, graph, 
         ablate=None, dump_path="../data/pockets_nx", cutoff=8,
-        non_binding=False):
+        non_binding=False, max_non_bind_samples=5):
     """
         Main function for extracting a graph from a binding site.
 
@@ -86,21 +86,26 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph,
 
     # rna_draw(G, title="BINDING")
 
-    # if dump_path and (len(G.nodes()) > 4):
-        # nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}.nx"))
+    if dump_path and (len(G.nodes()) > 4):
+        nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_BIND.nx"))
 
     #sample and build non-binding graph.
     if non_binding:
-        for pocket in sample_non_binding_sites(pdb_structure_path, lig_residue):
+        sampled = 0
+        site_sampler = sample_non_binding_sites(pdb_structure_path, lig_residue)
+        for pocket in site_sampler:
+            if sampled >= max_non_bind_samples:
+                break
             if pocket:
                 non_bind_graph = graph_from_residues(graph, pocket)
-                rna_draw(non_bind_graph, title="NON BINDING")
-                pdb_to_markers_(structure, non_bind_graph, "markers.cmm")
-                subprocess.call(['chimera', pdb_structure_path, 'markers.cmm'])
-                os.remove("markers.cmm")
-            else:
-                pass
-            pass
+                if dump_path and (len(non_bind_graph.nodes()) > 4):
+                    nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_NON_{sampled}.nx"))
+                    sampled += 1
+                # rna_draw(non_bind_graph, title="NON BINDING")
+                # pdb_to_markers_(structure, non_bind_graph, "markers.cmm")
+                # subprocess.call(['chimera', pdb_structure_path, 'markers.cmm'])
+                # os.remove("markers.cmm")
+        print(f">>> Sampled {sampled} non-binding sites for this pocket of {max_non_bind_samples}.")
     return G
 
 def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
@@ -143,7 +148,7 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
 
 if __name__ == "__main__":
     #take all ligands with 8 angstrom sphere and 0.6 RNA concentration, build a graph for each.
-    get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_2',
+    get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_pfind',
                                 non_binding=True)
     # get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','')
     pass
