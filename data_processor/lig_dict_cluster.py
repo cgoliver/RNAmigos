@@ -4,8 +4,13 @@
 
 import pickle
 
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-def ligands_cluster(bs_dict, fp_dict):
+from sklearn.cluster import AgglomerativeClustering
+
+
+def ligands_cluster(bs_dict, fp_dict, n_clusters=8):
     """
         Assign cluster labels to each ligand in ligand_list.
     """
@@ -15,10 +20,21 @@ def ligands_cluster(bs_dict, fp_dict):
     ligs_2_cluster = []
     for _,ligs in binding_sites.items():
         ligs_2_cluster.extend([f.split(":")[2] for f in ligs])
-    ligs_2_cluster = set(ligs_2_cluster)
+    ligs_2_cluster = list(set(ligs_2_cluster))
 
+    fps = []
+    for l in ligs_2_cluster:
+        try:
+            fps.append(fingerprints[l])
+        except:
+            print(l)
 
     #do the clustering
+    clusterer = AgglomerativeClustering(n_clusters=n_clusters)
+    clusterer.fit(fps)
+    labels = clusterer.labels_
+    sns.distplot(labels)
+    plt.show()
 
     pass
 

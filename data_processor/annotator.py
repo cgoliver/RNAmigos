@@ -172,7 +172,7 @@ def annotate_one(args):
     :param args: ( g (name of the graph),
     :return:
     """
-    g, graph_path, dump_path, fp, ablate = args
+    g, graph_path, dump_path, label, ablate = args
     try:
         dump_name = os.path.basename(g).replace('.cif', '') + "_annot.p"
         dump_full = os.path.join(dump_path, dump_name)
@@ -184,7 +184,7 @@ def annotate_one(args):
         if ablate:
             graph = graph_ablations(graph, ablate)
 
-        annots = tuple(list(annotate(graph)) + [fp])
+        annots = tuple(list(annotate(graph)) + [label])
         pickle.dump((graph, *annots),
                     open(dump_full, 'wb'))
         return 0, g
@@ -192,9 +192,17 @@ def annotate_one(args):
         print(e)
         return 1, g
 
+def get_label(g_path, mode='fp', fp_dict=None):
+    if mode == 'pocket-find':
+        l = [int(g_path.split("_")[2].strip('.nx') == 'BIND')]
+        return l
+    if mode == 'fp':
+        lig_name = lambda x: x.split(":")[2]
+        return fp_dict[lig_name(g_path)]
 
 def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotated/sample', 
-                graph_path='../data/chunks_nx', ablate="", parallel=True):
+                graph_path='../data/chunks_nx', ablate="", parallel=True,
+                mode='fp'):
     """
     Routine for all files in a folder
     :param dump_path: 
@@ -205,7 +213,6 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
     graphs = os.listdir(graph_path)
     failed = 0
     fp_dict = pickle.load(open(fp_file,'rb'))
-    lig_name = lambda x: x.split(":")[2]
     pool = mlt.Pool()
 
     try:
@@ -214,7 +221,7 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
         pass
 
     if parallel:
-        arguments = [(g, graph_path, dump_path, fp_dict[lig_name(g)], ablate) for g in graphs]
+        arguments = [(g, graph_path, dump_path, get_label(g, mode, fp_dict), ablate) for g in graphs]
         for res in tqdm(pool.imap_unordered(annotate_one, arguments), total=len(graphs)):
             if res[0]:
                 failed += 1
@@ -223,7 +230,7 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
         return failed
     for graph in tqdm(graphs, total=len(graphs)):
         try:
-            res = annotate_one((graph, graph_path, dump_path, fp_dict[lig_name(graph)], ablate))
+            res = annotate_one((graph, graph_path, dump_path, get_label(graph, mode, fp_dict), ablate))
         except KeyError:
             failed += 1
             print("missing fingerprint: {lig_name(graph)}")
@@ -235,4 +242,6 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
 
 
 if __name__ == '__main__':
-    annotate_all(parallel=False, graph_path="../data/pockets_nx_2", dump_path="../data/annotated/pockets_nx_2", ablate="")
+    # annotate_all(parallel=False, graph_path="../data/pockets_nx_2", dump_path="../data/annotated/pockets_nx_2", ablate="")
+    annotate_all(parallel=False, graph_path="../data/pockets_nx_pfind", dump_path="../data/annotated/pockets_nx_pfind", 
+        ablate="", mode='pocket-find')

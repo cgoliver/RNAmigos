@@ -153,7 +153,7 @@ def generic_fp(annot_dir):
 def ablation_results():
     modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle']
     modes = ['', 'pair-shuffle']
-    decoys = get_decoys(mode='dude')
+    decoys = get_decoys(mode='pdb')
     ranks, methods = [], []
     graph_dir = '../data/annotated/pockets_nx'
     graph_dir = '../data/annotated/pockets_nx_2'

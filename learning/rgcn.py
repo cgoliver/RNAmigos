@@ -139,7 +139,8 @@ class Model(nn.Module):
         :param scaled:
         :return:
         """
-        loss = torch.nn.BCELoss()(pred_fp, target_fp)
+        # loss = torch.nn.BCELoss()(pred_fp, target_fp)
+        loss = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([5], dtype=torch.float))(pred_fp, target_fp)
         return loss
 
     def draw_rec(self, true_K, predicted_K, title=""):

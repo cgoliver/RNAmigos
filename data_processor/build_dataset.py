@@ -124,11 +124,11 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
 
     done_pdbs = {f.split('_')[0] for f in os.listdir(dump_path)}
 
+    failed = []
     for pdbid, ligs in tqdm(lig_dict.items()):
         pdbid =  pdbid.split(".")[0]
         if pdbid in done_pdbs:
-            pass
-            # continue
+            continue
         # try:
         print(">>> ", pdbid)
         pdb_graph = pickle.load(open(f'../data/RNA_Graphs/{pdbid}.pickle', 'rb'))
@@ -137,13 +137,14 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
         for lig in ligs:
             pdb_path = f"../data/all_rna_prot_lig_2019/{pdbid}.cif"
             #dump binding site graphs
-            get_pocket_graph(pdb_path, lig,
-                            pdb_graph, dump_path=dump_path,
-                            non_binding=non_binding)
-        # except FileNotFoundError:
-            # print(f"{pdbid} not found")
-            # failed += 1
-    # print(failed)
+            try:
+                get_pocket_graph(pdb_path, lig,
+                                pdb_graph, dump_path=dump_path,
+                                non_binding=non_binding)
+            except FileNotFoundError:
+                print(f"{pdbid} not found")
+                failed.append(pdbid)
+    print(failed)
 
 
 if __name__ == "__main__":
