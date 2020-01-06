@@ -53,7 +53,7 @@ class Attributor(nn.Module):
 # Define full R-GCN model
 # ~~~~~~~~~~~~~~~~~~~~~~~
 class Model(nn.Module):
-    def __init__(self, dims, attributor_dims, num_rels, pool='att', num_bases=-1,
+    def __init__(self, dims, device, attributor_dims, num_rels, pool='att', num_bases=-1,
                              weighted_loss=0):
         """
 
@@ -72,6 +72,7 @@ class Model(nn.Module):
         self.num_rels = num_rels
         self.num_bases = num_bases
         self.weighted_loss = weighted_loss
+        self.device = device
 
         if pool == 'att':
             pooling_gate_nn = nn.Linear(dims[-1], 1)
@@ -90,7 +91,7 @@ class Model(nn.Module):
         last_hidden, last = (*self.dims[-2:],)
 
         # input feature is just node degree
-        i2h = self.build_hidden_layer(1, self.dims[0])
+        i2h = self.build_hidden_layer(1, self.dims[0]).to(self.device)
         self.layers.append(i2h)
 
         for dim_in, dim_out in zip(short, short[1:]):

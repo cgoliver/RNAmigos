@@ -110,7 +110,7 @@ if dims[-1] != attributor_dims[0]:
 motif_lam = args.motif_lam
 reconstruction_lam = args.reconstruction_lam
 
-model = Model(dims=dims, attributor_dims=attributor_dims,
+model = Model(dims, device, attributor_dims=attributor_dims,
               num_rels=loader.num_edge_types,
               num_bases=-1, pool='sum')
 
