@@ -54,7 +54,7 @@ class Attributor(nn.Module):
 # ~~~~~~~~~~~~~~~~~~~~~~~
 class Model(nn.Module):
     def __init__(self, dims, device, attributor_dims, num_rels, pool='att', num_bases=-1,
-                             weighted_loss=0):
+                             pos_weight=0):
         """
 
         :param dims: the embeddings dimensions
@@ -71,7 +71,7 @@ class Model(nn.Module):
         self.dims = dims
         self.num_rels = num_rels
         self.num_bases = num_bases
-        self.weighted_loss = weighted_loss
+        self.pos_weight = pos_weight 
         self.device = device
 
         if pool == 'att':
@@ -91,7 +91,7 @@ class Model(nn.Module):
         last_hidden, last = (*self.dims[-2:],)
 
         # input feature is just node degree
-        i2h = self.build_hidden_layer(1, self.dims[0]).to(self.device)
+        i2h = self.build_hidden_layer(1, self.dims[0])
         self.layers.append(i2h)
 
         for dim_in, dim_out in zip(short, short[1:]):
@@ -116,7 +116,7 @@ class Model(nn.Module):
 
     def forward(self, g):
         #make sure to send this to device
-        h = g.in_degrees().view(-1, 1).float()
+        h = g.in_degrees().view(-1, 1).float().to(self.device)
         for layer in self.layers:
             # layer(g)
             h = layer(g, h, g.edata['one_hot'])
@@ -143,8 +143,9 @@ class Model(nn.Module):
         :param scaled:
         :return:
         """
-        if self.weighted_loss:
-            loss = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([self.weighted_loss], dtype=torch.float))(pred_fp, target_fp)
+        if self.pos_weight:
+            pw = torch.tensor([self.pos_weight], requires_grad=False).to(self.device)
+            loss = torch.nn.BCEWithLogitsLoss(pos_weight=pw)(pred_fp, target_fp)
         else:
             loss = torch.nn.BCELoss()(pred_fp, target_fp)
         return loss

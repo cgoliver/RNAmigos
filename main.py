@@ -18,6 +18,7 @@ parser.add_argument('-ed','--embedding_dims', nargs='+', type=int, help='Dimensi
 parser.add_argument('-sf','--sim_function', type=str, help='Node similarity function (Supported Options: R_1, IDF).', default="R_1")
 parser.add_argument('-eo','--embed_only', type=int, help='Number of epochs to train embedding network before starting attributor. If -eo > num_epochs, no attributions trained. If < 0, attributor and embeddings always on. If 0 <= -eo <- num_epochs, switch attributor ON and embeddings OFF.', default=-1)
 parser.add_argument('-w', '--warm_start', type=str, default=None, help='Path to pre-trained model.')
+parser.add_argument('-pw', '--pos_weight', type=int, default=0, help='Weight for positive examples.')
 parser.add_argument('-rs', '--seed', type=int, default=0, help='Random seed to use (if > 0, else no seed is set).')
 
 args = parser.parse_args()
@@ -112,7 +113,8 @@ reconstruction_lam = args.reconstruction_lam
 
 model = Model(dims, device, attributor_dims=attributor_dims,
               num_rels=loader.num_edge_types,
-              num_bases=-1, pool='sum')
+              num_bases=-1, pool='sum',
+              pos_weight=args.pos_weight)
 
 #if pre-trained initialize matching layers
 if args.warm_start:
