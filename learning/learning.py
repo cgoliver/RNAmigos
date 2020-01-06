@@ -159,7 +159,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
             # Get data on the devices
             batch_size = len(K)
-            fp = torch.rand_like(fp)
             fp = fp.to(device)
             graph = send_graph_to_device(graph, device)
 

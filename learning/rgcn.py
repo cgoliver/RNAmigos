@@ -144,7 +144,7 @@ class Model(nn.Module):
         :return:
         """
         if self.pos_weight:
-            pw = torch.tensor([self.pos_weight], requires_grad=False).to(self.device)
+            pw = torch.tensor([self.pos_weight], dtype=torch.float, requires_grad=False).to(self.device)
             loss = torch.nn.BCEWithLogitsLoss(pos_weight=pw)(pred_fp, target_fp)
         else:
             loss = torch.nn.BCELoss()(pred_fp, target_fp)
