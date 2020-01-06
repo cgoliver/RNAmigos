@@ -69,6 +69,9 @@ class V1(Dataset):
         graphlist = os.listdir(self.path)
         for g in tqdm(graphlist):
             graph,_,_,_ = pickle.load(open(os.path.join(self.path, g), 'rb'))
+            if len(graph.nodes()) < 4:
+                print(len(graph.nodes()), g)
+            # assert len(graph.nodes()) > 0, f"{len(graph.nodes())}"
             edges = {e_dict['label'] for _,_,e_dict in graph.edges(data=True)}
             edge_counts.update(edges)
 
@@ -137,7 +140,8 @@ class Loader():
         valid_set = Subset(self.dataset, valid_indices)
         test_set = Subset(self.dataset, test_indices)
 
-        print(len(train_set))
+        print("training graphs ", len(train_set))
+        print("testing graphs ", len(test_set))
 
         collate_block = collate_wrapper(self.dataset.node_sim_func)
 

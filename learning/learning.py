@@ -81,7 +81,8 @@ def test(model, test_loader, device):
         graph = send_graph_to_device(graph, device)
 
         # Do the computations for the forward pass
-        fp_pred = model(graph)
+        with torch.no_grad():
+            fp_pred = model(graph)
         loss = model.compute_loss(fp, fp_pred)
         del K
         del fp
@@ -158,8 +159,10 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
             # Get data on the devices
             batch_size = len(K)
+            fp = torch.rand_like(fp)
             fp = fp.to(device)
             graph = send_graph_to_device(graph, device)
+
 
             # Do the computations for the forward pass
             fp_pred = model(graph)
@@ -178,8 +181,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
             # Metrics
             batch_loss = loss.item()
             running_loss += batch_loss
-
-
 
             # running_corrects += labels.eq(target.view_as(out)).sum().item()
             if batch_idx % 20 == 0:

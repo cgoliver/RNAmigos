@@ -53,7 +53,8 @@ class Attributor(nn.Module):
 # Define full R-GCN model
 # ~~~~~~~~~~~~~~~~~~~~~~~
 class Model(nn.Module):
-    def __init__(self, dims, attributor_dims, num_rels, pool='sum', num_bases=-1):
+    def __init__(self, dims, attributor_dims, num_rels, pool='att', num_bases=-1,
+                             weighted_loss=0):
         """
 
         :param dims: the embeddings dimensions
@@ -70,6 +71,7 @@ class Model(nn.Module):
         self.dims = dims
         self.num_rels = num_rels
         self.num_bases = num_bases
+        self.weighted_loss = weighted_loss
 
         if pool == 'att':
             pooling_gate_nn = nn.Linear(dims[-1], 1)
@@ -112,6 +114,7 @@ class Model(nn.Module):
                             activation=None)
 
     def forward(self, g):
+        #make sure to send this to device
         h = g.in_degrees().view(-1, 1).float()
         for layer in self.layers:
             # layer(g)
@@ -139,8 +142,10 @@ class Model(nn.Module):
         :param scaled:
         :return:
         """
-        # loss = torch.nn.BCELoss()(pred_fp, target_fp)
-        loss = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([5], dtype=torch.float))(pred_fp, target_fp)
+        if self.weighted_loss:
+            loss = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([self.weighted_loss], dtype=torch.float))(pred_fp, target_fp)
+        else:
+            loss = torch.nn.BCELoss()(pred_fp, target_fp)
         return loss
 
     def draw_rec(self, true_K, predicted_K, title=""):
