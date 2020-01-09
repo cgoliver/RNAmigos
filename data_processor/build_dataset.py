@@ -75,16 +75,16 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph,
 
     G = graph_from_residues(graph, pocket)
     #visualize on 3D structure
-    # pdb_to_markers_(structure, G, "markers.cmm")
-    # subprocess.call(['chimera', pdb_structure_path, 'markers.cmm'])
+    pdb_to_markers_(structure, G, "markers.cmm")
+    subprocess.call(['chimera', pdb_structure_path, 'markers.cmm'])
 
-    # os.remove("markers.cmm")
+    os.remove("markers.cmm")
 
     labels = {d['label'] for _,_,d in G.edges(data=True)}
 
     assert labels.issubset(valid_edges)
 
-    # rna_draw(G, title="BINDING")
+    rna_draw(G, title="BINDING")
 
     if dump_path and (len(G.nodes()) > 4):
         nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_BIND.nx"))
@@ -131,7 +131,11 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
             continue
         # try:
         print(">>> ", pdbid)
-        pdb_graph = pickle.load(open(f'../data/RNA_Graphs/{pdbid}.pickle', 'rb'))
+        try:
+            pdb_graph = pickle.load(open(f'../data/RNA_Graphs/{pdbid}.pickle', 'rb'))
+        except FileNotFoundError:
+            print(f"{pdbid} graph not found.")
+            continue
         # print(f"new guy: {pdbid}")
         # continue
         for lig in ligs:

@@ -91,8 +91,8 @@ class Model(nn.Module):
         last_hidden, last = (*self.dims[-2:],)
 
         # input feature is just node degree
-        i2h = self.build_hidden_layer(1, self.dims[0])
-        self.layers.append(i2h)
+        # i2h = self.build_hidden_layer(1, self.dims[0])
+        # self.layers.append(i2h)
 
         for dim_in, dim_out in zip(short, short[1:]):
             # print('in',dim_in, dim_out)
@@ -116,7 +116,8 @@ class Model(nn.Module):
 
     def forward(self, g):
         #make sure to send this to device
-        h = g.in_degrees().view(-1, 1).float().to(self.device)
+        # h = g.in_degrees().view(-1, 1).float().to(self.device)
+        h = g.ndata.pop('h')
         for layer in self.layers:
             # layer(g)
             h = layer(g, h, g.edata['one_hot'])
@@ -143,11 +144,10 @@ class Model(nn.Module):
         :param scaled:
         :return:
         """
-        if self.pos_weight:
-            pw = torch.tensor([self.pos_weight], dtype=torch.float, requires_grad=False).to(self.device)
-            loss = torch.nn.BCEWithLogitsLoss(pos_weight=pw)(pred_fp, target_fp)
-        else:
-            loss = torch.nn.BCELoss()(pred_fp, target_fp)
+        # pw = torch.tensor([self.pos_weight], dtype=torch.float, requires_grad=False).to(self.device)
+        # loss = torch.nn.BCEWithLogitsLoss(pos_weight=pw)(pred_fp, target_fp)
+        loss = torch.nn.BCELoss()(pred_fp, target_fp)
+
         return loss
 
     def draw_rec(self, true_K, predicted_K, title=""):

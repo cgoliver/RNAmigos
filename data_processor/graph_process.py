@@ -26,16 +26,13 @@ def remove_non_standard_edges(G):
 def to_orig(G):
     remove_self_loops(G)
     # remove_non_standard_edges(G)
-    # remove_non_standard_edges(G)
-    # remove_non_standard_edges(G)
     H = nx.Graph()
     for n1, n2, d in G.edges(data=True):
         label = d['label']
         if label in valid_edges:
             H.add_edge(n1, n2, label=d['label'])
-    # for n,d in G.nodes(data=True):
-        # if n in H.nodes():
-            # nx.set_node_attributes(H, 'nucleotides', {n:d['nucleotide']})
+    d_orig = {n:d['nucleotide'].pdb_pos for n,d in G.nodes(data=True)}
+    nx.set_node_attributes(H, {n:d_orig[n] for n in H.nodes()}, 'pdb_pos')
     return H
 
 def kill_islands(G, min_size=4):

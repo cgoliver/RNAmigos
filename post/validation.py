@@ -33,12 +33,13 @@ from post.drawing import rna_draw
 
 def load_model(run, graph_dir):
     dims = [4] * 3
-    # dims = [32]*6
-    attributor_dims = [4, 166]
+    dims = [32]*3
+    attributor_dims = [32, 166]
 
     edge_map = get_edge_map(graph_dir)
 
-    model = Model(dims=dims, attributor_dims=attributor_dims, num_rels=len(edge_map), num_bases=-1)
+    model = Model(dims=dims, device='cpu', attributor_dims=attributor_dims, num_rels=len(edge_map), num_bases=-1,
+                    pool='sum')
     model.load_state_dict(torch.load(f'../trained_models/{run}/{run}.pth', map_location='cpu')['model_state_dict'])
 
 
@@ -125,11 +126,14 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
                 rna_draw(g0, highlight_edges=highlight_edges)
 
         fp_pred = fp_pred.detach().numpy() > 0.5
-        print(fp_pred)
         # print(fp_pred)
         # fp_pred = np.random.choice([0, 1], size=(166,), p=[1./2, 1./2])
         if shuffle:
-            true_id = choice(ligs)
+            orig = true_id
+            print(orig)
+            true_id = np.random.choice(ligs, replace=False)
+            print(true_id)
+            print(true_id == orig)
         active = decoys[true_id][0]
         decs = decoys[true_id][1]
         rank = distance_rank(active, fp_pred, decs)
@@ -151,13 +155,13 @@ def generic_fp(annot_dir):
     pass
     
 def ablation_results():
-    modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle']
+    # modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle']
     modes = ['', 'pair-shuffle']
     decoys = get_decoys(mode='pdb')
     ranks, methods = [], []
     graph_dir = '../data/annotated/pockets_nx'
-    graph_dir = '../data/annotated/pockets_nx_2'
-    run = "n"
+    # graph_dir = '../data/annotated/pockets_nx_2'
+    run = "small_no_rec_2"
     for m in modes:
 
         # if m in ['', 'pair-shuffle']:
@@ -202,7 +206,7 @@ def ablation_results():
         #4v6q_#0:BB:FME:3001.nx_annot.p
         test_ligs = set([f.split(":")[2] for f in graph_ids['test']])
         train_ligs = set([f.split(":")[2] for f in graph_ids['train']])
-        print(test_ligs - train_ligs)
+        print("ligands not in train set", test_ligs - train_ligs)
         points = []
         tot = len([x for x in ranks_this if x >= rank_cut])
         for sim_cut in np.arange(0,1.1,0.1):
