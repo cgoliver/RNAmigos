@@ -19,6 +19,7 @@ parser.add_argument('-sf','--sim_function', type=str, help='Node similarity func
 parser.add_argument('-eo','--embed_only', type=int, help='Number of epochs to train embedding network before starting attributor. If -eo > num_epochs, no attributions trained. If < 0, attributor and embeddings always on. If 0 <= -eo <- num_epochs, switch attributor ON and embeddings OFF.', default=-1)
 parser.add_argument('-w', '--warm_start', type=str, default=None, help='Path to pre-trained model.')
 parser.add_argument('-pw', '--pos_weight', type=int, default=0, help='Weight for positive examples.')
+parser.add_argument('-po', '--pool', type=str, default='sum', help='Pooling function to use.')
 parser.add_argument('-rs', '--seed', type=int, default=0, help='Random seed to use (if > 0, else no seed is set).')
 
 args = parser.parse_args()
@@ -113,13 +114,13 @@ reconstruction_lam = args.reconstruction_lam
 
 model = Model(dims, device, attributor_dims=attributor_dims,
               num_rels=loader.num_edge_types,
-              num_bases=-1, pool='sum',
+              num_bases=-1, pool='att',
               pos_weight=args.pos_weight)
 
 #if pre-trained initialize matching layers
 if args.warm_start:
     print("warm starting")
-    m = torch.load(args.warm_start)['model_state_dict']
+    m = torch.load(args.warm_start, map_location='cpu')['model_state_dict']
     #remove keys not related to embeddings
     for k in list(m.keys()):
         if 'layers' not in k:
@@ -157,6 +158,9 @@ result_folder, save_path = mkdirs(name)
 writer = SummaryWriter(result_folder)
 print(f'Saving result in {name}')
 
+
+#save metainfo
+pickle.dump(args, open(os.path.join('trained_models', name, 'args.p'), 'wb'))
 
 import numpy as np
 

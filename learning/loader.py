@@ -57,6 +57,8 @@ class V1(Dataset):
         g_dgl.ndata['h'] = torch.ones((n_nodes, self.emb_size))
         g_dgl.title = self.all_graphs[idx]
 
+        ring = dict(sorted(ring.items(), key=lambda x:x[0]))
+
         return g_dgl, ring, fp
 
     def _get_edge_data(self):

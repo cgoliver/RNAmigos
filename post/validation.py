@@ -32,18 +32,22 @@ from learning.utils import dgl_to_nx
 from post.drawing import rna_draw
 
 def load_model(run, graph_dir):
-    dims = [4] * 3
-    dims = [32]*3
-    attributor_dims = [32, 166]
 
+    args = pickle.load(open(f'../trained_models/{run}/args.p', 'rb'))
+    
     edge_map = get_edge_map(graph_dir)
 
-    model = Model(dims=dims, device='cpu', attributor_dims=attributor_dims, num_rels=len(edge_map), num_bases=-1,
-                    pool='sum')
-    model.load_state_dict(torch.load(f'../trained_models/{run}/{run}.pth', map_location='cpu')['model_state_dict'])
+    print(args)
+    model = Model(dims=args.embedding_dims, 
+                  attributor_dims=args.attributor_dims,
+                  num_rels=len(edge_map),
+                  num_bases=-1,
+                  device='cpu',
+                  pool=args.pool)
+    model.load_state_dict(torch.load(f'../trained_models/{run}/{run}.pth', map_location='cpu')['model_state_dict'], strict=False)
 
 
-    return model, edge_map, dims[-1]
+    return model, edge_map, args.embedding_dims[-1]
 
 def get_decoys(mode='pdb', annots_dir='../data/annotated/pockets_nx_2'):
     """
@@ -157,11 +161,12 @@ def generic_fp(annot_dir):
 def ablation_results():
     # modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle']
     modes = ['', 'pair-shuffle']
-    decoys = get_decoys(mode='pdb')
+    decoys = get_decoys(mode='dude')
     ranks, methods = [], []
     graph_dir = '../data/annotated/pockets_nx'
     # graph_dir = '../data/annotated/pockets_nx_2'
     run = "small_no_rec_2"
+    run = 'ppp'
     for m in modes:
 
         # if m in ['', 'pair-shuffle']:

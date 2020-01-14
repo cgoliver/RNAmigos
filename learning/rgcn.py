@@ -49,6 +49,62 @@ class Attributor(nn.Module):
     def forward(self, x):
         return self.net(x)
 
+class Embedder(nn.Module):
+    def __init__(self, dims, num_rels=19, num_bases=-1):
+        super(Embedder, self).__init__()
+        self.dims = dims
+        self.num_rels = num_rels
+        self.num_bases = num_bases
+
+        self.layers = self.build_model()
+
+    def build_model(self):
+        layers = nn.ModuleList()
+
+        short = self.dims[:-1]
+        last_hidden, last = (*self.dims[-2:],)
+
+        # input feature is just node degree
+        i2h = self.build_hidden_layer(1, self.dims[0])
+        layers.append(i2h)
+
+        for dim_in, dim_out in zip(short, short[1:]):
+            # print('in',dim_in, dim_out)
+            h2h = self.build_hidden_layer(dim_in, dim_out)
+            layers.append(h2h)
+        # hidden to output
+        h2o = self.build_output_layer(last_hidden, last)
+        # print('last',last_hidden,last)
+        layers.append(h2o)
+        # print(layers)
+        return layers
+
+    @property
+    def current_device(self):
+        """
+        :return: current device this model is on
+        """
+        return next(self.parameters()).device
+
+    def build_hidden_layer(self, in_dim, out_dim):
+        return RelGraphConv(in_dim, out_dim, self.num_rels,
+                            num_bases=self.num_bases,
+                            activation=F.relu)
+
+    # No activation for the last layer
+    def build_output_layer(self, in_dim, out_dim):
+        return RelGraphConv(in_dim, out_dim, self.num_rels, num_bases=self.num_bases,
+                            activation=None)
+
+    def forward(self, g):
+        h = g.in_degrees().view(-1, 1).float().to(self.current_device)
+        for layer in self.layers:
+            # layer(g)
+            h = layer(g, h, g.edata['one_hot'])
+        g.ndata['h'] = h
+        del h
+        embeddings = g.ndata.pop('h')
+        return embeddings
 ###############################################################################
 # Define full R-GCN model
 # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,7 +127,7 @@ class Model(nn.Module):
         self.dims = dims
         self.num_rels = num_rels
         self.num_bases = num_bases
-        self.pos_weight = pos_weight 
+        self.pos_weight = pos_weight
         self.device = device
 
         if pool == 'att':
@@ -79,51 +135,13 @@ class Model(nn.Module):
             self.pool = GlobalAttentionPooling(pooling_gate_nn)
         else:
             self.pool = SumPooling()
+
+        self.embedder = Embedder(dims=dims, num_rels=num_rels, num_bases=num_bases)
+
         self.attributor = Attributor(attributor_dims)
 
-        # create rgcn layers
-        self.build_model()
-
-    def build_model(self):
-        self.layers = nn.ModuleList()
-
-        short = self.dims[:-1]
-        last_hidden, last = (*self.dims[-2:],)
-
-        # input feature is just node degree
-        # i2h = self.build_hidden_layer(1, self.dims[0])
-        # self.layers.append(i2h)
-
-        for dim_in, dim_out in zip(short, short[1:]):
-            # print('in',dim_in, dim_out)
-            h2h = self.build_hidden_layer(dim_in, dim_out)
-            self.layers.append(h2h)
-        # hidden to output
-        h2o = self.build_output_layer(last_hidden, last)
-        # print('last',last_hidden,last)
-        self.layers.append(h2o)
-        print(self.layers)
-
-    def build_hidden_layer(self, in_dim, out_dim):
-        return RelGraphConv(in_dim, out_dim, self.num_rels,
-                            num_bases=self.num_bases,
-                            activation=F.relu)
-
-    # No activation for the last layer
-    def build_output_layer(self, in_dim, out_dim):
-        return RelGraphConv(in_dim, out_dim, self.num_rels, num_bases=self.num_bases,
-                            activation=None)
-
     def forward(self, g):
-        #make sure to send this to device
-        # h = g.in_degrees().view(-1, 1).float().to(self.device)
-        h = g.ndata.pop('h')
-        for layer in self.layers:
-            # layer(g)
-            h = layer(g, h, g.edata['one_hot'])
-        g.ndata['h'] = h
-        # print(g.ndata['h'].size())
-        embeddings = g.ndata.pop('h')
+        embeddings = self.embedder(g)
         fp = self.pool(g, embeddings)
         fp = self.attributor(fp)
         return fp
