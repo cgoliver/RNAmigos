@@ -144,10 +144,47 @@ class Model(nn.Module):
         embeddings = self.embedder(g)
         fp = self.pool(g, embeddings)
         fp = self.attributor(fp)
-        return fp
+        return fp, embeddings
 
+    def rec_loss(self, embeddings, target_K, similarity=True):
+        """
+        :param embeddings: The node embeddings
+        :param target_K: The similarity matrix
+        :param similarity: Boolean, if true, the similarity is used with the cosine, otherwise the distance is used
+        :return:
+        """
+        if similarity:
+            K_predict = self.matrix_cosine(embeddings, embeddings)
+
+        else:
+            K_predict = self.matrix_dist(embeddings)
+            target_K = torch.ones(target_K.shape, device=target_K.device) - target_K
+
+        reconstruction_loss = torch.nn.MSELoss()(K_predict, target_K)
+        self.draw_rec(target_K, K_predict)
+        return reconstruction_loss
     # Below are loss computation function related to this model
+    @staticmethod
+    def matrix_dist(a, plus_one=False):
+        """
+        Pairwise dist of a set of a vector of size b
+        returns a matrix of size (a,a)
+        :param plus_one: if we want to get positive values
+        """
+        if plus_one:
+            return torch.norm(a[:, None] - a, dim=2, p=2) + 1
+        return torch.norm(a[:, None] - a, dim=2, p=2)
 
+    @staticmethod
+    def matrix_cosine(a, b, eps=1e-8):
+        """
+        added eps for numerical stability
+        """
+        a_n, b_n = a.norm(dim=1)[:, None], b.norm(dim=1)[:, None]
+        a_norm = a / torch.max(a_n, eps * torch.ones_like(a_n))
+        b_norm = b / torch.max(b_n, eps * torch.ones_like(b_n))
+        sim_mt = torch.mm(a_norm, b_norm.transpose(0, 1))
+        return sim_mt
 
     def compute_loss(self, target_fp, pred_fp):
         """
@@ -176,10 +213,17 @@ class Model(nn.Module):
         :param loss_value: python float
         :return:
         """
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        kws = {'cbar_kws': {'shrink': 0.5},
+               'square':True,
+               'vmin': 0,
+               'vmax': 1
+               }
+
         fig, (ax1, ax2) = plt.subplots(1, 2)
-        sns.heatmap(true_K.clone().detach().numpy(), vmin=0, vmax=1, ax=ax1, square=True, cbar=False)
-        sns.heatmap(predicted_K.clone().detach().numpy(), vmin=0, vmax=1, ax=ax2, square=True, cbar=False,
-                    cbar_kws={"shrink": 1})
+        sns.heatmap(true_K.clone().detach().numpy(), ax=ax1, **kws)
+        sns.heatmap(predicted_K.clone().detach().numpy(),  ax=ax2, **kws)
         ax1.set_title("Ground Truth")
         ax2.set_title("GCN")
         fig.suptitle(title)

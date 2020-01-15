@@ -29,25 +29,8 @@ from post.utils import *
 
 from learning.attn import get_attention_map
 from learning.utils import dgl_to_nx
+from tools.learning_utils import load_model
 from post.drawing import rna_draw
-
-def load_model(run, graph_dir):
-
-    args = pickle.load(open(f'../trained_models/{run}/args.p', 'rb'))
-    
-    edge_map = get_edge_map(graph_dir)
-
-    print(args)
-    model = Model(dims=args.embedding_dims, 
-                  attributor_dims=args.attributor_dims,
-                  num_rels=len(edge_map),
-                  num_bases=-1,
-                  device='cpu',
-                  pool=args.pool)
-    model.load_state_dict(torch.load(f'../trained_models/{run}/{run}.pth', map_location='cpu')['model_state_dict'], strict=False)
-
-
-    return model, edge_map, args.embedding_dims[-1]
 
 def get_decoys(mode='pdb', annots_dir='../data/annotated/pockets_nx_2'):
     """
@@ -113,7 +96,7 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
             print("missing fp", true_id)
             continue
         nx_graph, dgl_graph = nx_to_dgl(g, edge_map, embed_dim)
-        fp_pred= model(dgl_graph)
+        fp_pred, _ = model(dgl_graph)
 
         if False:
                 n_nodes = len(dgl_graph.nodes)
@@ -166,7 +149,7 @@ def ablation_results():
     graph_dir = '../data/annotated/pockets_nx'
     # graph_dir = '../data/annotated/pockets_nx_2'
     run = "small_no_rec_2"
-    run = 'ppp'
+    run = 'ypp'
     for m in modes:
 
         # if m in ['', 'pair-shuffle']:
@@ -177,10 +160,12 @@ def ablation_results():
             # run = 'small_no_rec' + m
 
 
-        model,edge_map,embed_dim = load_model(run, graph_dir)
+        model, meta = load_model(run)
+        edge_map = meta['edge_map']
+        embed_dim = meta['embedding_dims'][-1]
         num_edge_types = len(edge_map)
 
-        graph_ids = pickle.load(open(f'../results/{run}/splits.p', 'rb'))
+        graph_ids = pickle.load(open(f'../results/trained_models/{run}/splits.p', 'rb'))
 
         shuffle = False
         if m == 'pair-shuffle':

@@ -46,9 +46,10 @@ def set_gradients(model, embedding=True, attributor=True):
     for param in model.named_parameters():
         name, p = param
         name = name.split('.')[0]
-        if name in ['embeddings', 'attributor']:
+        print(name)
+        if name in ['attributor', 'pool']:
             p.requires_grad = attributor
-        if name == 'layers':
+        if name == 'embedder':
             p.requires_grad = embedding
     pass
 
@@ -82,7 +83,7 @@ def test(model, test_loader, device):
 
         # Do the computations for the forward pass
         with torch.no_grad():
-            fp_pred = model(graph)
+            fp_pred, embeddings = model(graph)
         loss = model.compute_loss(fp, fp_pred)
         del K
         del fp
@@ -120,7 +121,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     edge_map = train_loader.dataset.dataset.edge_map
 
     epochs_from_best = 0
-    early_stop_threshold = 80
+    early_stop_threshold = 10
 
     start_time = time.time()
     best_loss = sys.maxsize
@@ -162,16 +163,14 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
             fp = fp.to(device)
             graph = send_graph_to_device(graph, device)
 
+            fp_pred, embeddings = model(graph)
 
-            # Do the computations for the forward pass
-            fp_pred = model(graph)
-
-            # Compute the loss with proper summation, solves the problem ?
             loss = model.compute_loss(fp, fp_pred)
 
-            del K
-            del fp
-            del graph
+            # l = model.rec_loss(embeddings, K, similarity=False)
+            # print(l)
+
+
             # Backward
             loss.backward()
             optimizer.step()
@@ -198,8 +197,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
             del loss
 
-        # torch.cuda.empty_cache()
-        # torch.cuda.synchronize()
         # Log training metrics
         train_loss = running_loss / num_batches
         writer.add_scalar("Training epoch loss", train_loss, epoch)
@@ -211,12 +208,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
         test_loss = test(model, test_loader, device)
         print(">> test loss ", test_loss)
 
-        # torch.cuda.empty_cache()
-        # torch.cuda.synchronize()
-
         writer.add_scalar("Test loss during training", test_loss, epoch)
-
-        # writer.log_scalar("Test accuracy during training", test_accuracy, epoch)
 
         # Checkpointing
         if test_loss < best_loss:

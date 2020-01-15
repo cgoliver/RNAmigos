@@ -25,16 +25,14 @@ def mkdirs(name, permissive=True):
     :param permissive: If True will overwrite existing files (good for debugging)
     :return:
     """
-    log_path = os.path.join('results', name)
-    save_path = os.path.join('trained_models', name)
+    save_path = os.path.join('results', 'trained_models', name)
     try:
-        os.makedirs(log_path)
         os.makedirs(save_path)
     except FileExistsError:
         if not permissive:
             raise ValueError('This name is already taken !')
     save_name = os.path.join(save_path, name + '.pth')
-    return log_path, save_name
+    return save_path, save_name
 
 
 def debug_memory():

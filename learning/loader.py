@@ -21,9 +21,11 @@ from data_processor.node_sim import SimFunctionNode, k_block_list
 
 
 class V1(Dataset):
-    def __init__(self, emb_size, sim_function="R_1",
+    def __init__(self, sim_function="R_1",
                     annotated_path='../data/annotated/pockets_nx',
-                    debug=False, shuffled=False):
+                    debug=False, 
+                    shuffled=False,
+                    get_sim_mat=True):
         self.path = annotated_path
         self.all_graphs = sorted(os.listdir(annotated_path))
         #build edge map
@@ -35,7 +37,8 @@ class V1(Dataset):
         self.node_sim_func = SimFunctionNode(method=sim_function, IDF=self.edge_freqs, depth=4)
 
         self.n = len(self.all_graphs)
-        self.emb_size = emb_size
+
+        self.get_sim_mat = get_sim_mat
 
 
     def __len__(self):
@@ -54,12 +57,16 @@ class V1(Dataset):
         g_dgl = dgl.DGLGraph()
         g_dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'])
         n_nodes = len(g_dgl.nodes())
-        g_dgl.ndata['h'] = torch.ones((n_nodes, self.emb_size))
+        # g_dgl.ndata['h'] = torch.ones((n_nodes, self.emb_size))
         g_dgl.title = self.all_graphs[idx]
 
-        ring = dict(sorted(ring.items(), key=lambda x:x[0]))
+        if self.get_sim_mat:
+            # put the rings in same order as the dgl graph
+            ring = dict(sorted(ring.items()))
+            return g_dgl, ring, fp
 
-        return g_dgl, ring, fp
+        else:
+            return g_dgl, fp
 
     def _get_edge_data(self):
         """
@@ -81,30 +88,41 @@ class V1(Dataset):
         IDF = {k: np.log(len(graphlist)/ edge_counts[k] + 1) for k in edge_counts}
         return edge_map, IDF
 
-def collate_wrapper(node_sim_func):
+def collate_wrapper(node_sim_func, get_sim_mat=True):
     """
         Wrapper for collate function so we can use different node similarities.
     """
-    def collate_block(samples):
-        # The input `samples` is a list of pairs
-        #  (graph, label).
-        # print(len(samples))
-        graphs, rings, fp = map(list, zip(*samples))
-        fp = np.array(fp)
-        batched_graph = dgl.batch(graphs)
-        K = k_block_list(rings, node_sim_func)
-        return batched_graph, torch.from_numpy(K).detach().float(), torch.from_numpy(fp).detach().float()
+    if get_sim_mat:
+        def collate_block(samples):
+            # The input `samples` is a list of pairs
+            #  (graph, label).
+            # print(len(samples))
+            graphs, rings, fp = map(list, zip(*samples))
+            fp = np.array(fp)
+            batched_graph = dgl.batch(graphs)
+            K = k_block_list(rings, node_sim_func)
+            return batched_graph, torch.from_numpy(K).detach().float(), torch.from_numpy(fp).detach().float()
+    else:
+        def collate_block(samples):
+            # The input `samples` is a list of pairs
+            #  (graph, label).
+            # print(len(samples))
+            graphs, _, fp = map(list, zip(*samples))
+            fp = np.array(fp)
+            batched_graph = dgl.batch(graphs)
+            len_graphs = [len(graph) for graph in samples]
+            return batched_graph, [1 for _ in samples], torch.from_numpy(fp)
     return collate_block
 
 class Loader():
     def __init__(self,
                  annotated_path='data/annotated/samples/',
-                 emb_size=128,
                  batch_size=128,
                  num_workers=20,
                  sim_function="R_1",
                  debug=False,
-                 shuffled=False):
+                 shuffled=False,
+                 get_sim_mat=True):
         """
         Wrapper class to call with all arguments and that returns appropriate data_loaders
         :param pocket_path:
@@ -118,10 +136,11 @@ class Loader():
         """
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.dataset = V1(emb_size, annotated_path=annotated_path,
+        self.dataset = V1(annotated_path=annotated_path,
                           debug=debug,
                           shuffled=shuffled,
-                          sim_function=sim_function)
+                          sim_function=sim_function,
+                          get_sim_mat=get_sim_mat)
 
         self.num_edge_types = self.dataset.num_edge_types
 

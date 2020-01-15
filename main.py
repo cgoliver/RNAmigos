@@ -81,7 +81,7 @@ attributor_dims = args.attributor_dims
 
 print(f'Using batch_size of {batch_size}')
 
-loader = Loader(emb_size=dims[0], annotated_path=annotated_path,
+loader = Loader(annotated_path=annotated_path,
                 batch_size=batch_size, num_workers=num_workers,
                 sim_function=args.sim_function)
 
@@ -92,13 +92,6 @@ print('Created data loader')
 if len(train_loader) == 0 & len(test_loader) == 0:
     raise ValueError('there are not enough points compared to the BS')
 
-# a = time.perf_counter()
-# for batch_idx, (inputs, labels) in enumerate(train_loader):
-#     if not batch_idx % 20:
-#         print(batch_idx, time.perf_counter() - a)
-#         a = time.perf_counter()
-# print('Done in : ', time.perf_counter() - a)
-
 '''
 Model loading
 '''
@@ -108,7 +101,6 @@ Model loading
 if dims[-1] != attributor_dims[0]:
     raise ValueError(f"Final embedding size must match first attributor dimension: {dims[-1]} != {attributor_dims[0]}")
 
-
 motif_lam = args.motif_lam
 reconstruction_lam = args.reconstruction_lam
 
@@ -117,20 +109,26 @@ model = Model(dims, device, attributor_dims=attributor_dims,
               num_bases=-1, pool='att',
               pos_weight=args.pos_weight)
 
+# for param_tensor in model.state_dict():
+    # if 'embedder' in param_tensor:
+        # print(param_tensor, "\t", model.state_dict()[param_tensor])
 #if pre-trained initialize matching layers
 if args.warm_start:
     print("warm starting")
     m = torch.load(args.warm_start, map_location='cpu')['model_state_dict']
     #remove keys not related to embeddings
     for k in list(m.keys()):
-        if 'layers' not in k:
+        if 'embedder' not in k:
+            print("killing ", k)
             del m[k]
-    # print(m['model_state_dict']['layers.2.weight'])
     missing = model.load_state_dict(m, strict=False)
     print(missing)
 
 model = model.to(device)
 
+# for param_tensor in model.state_dict():
+    # if 'embedder' in param_tensor:
+        # print(param_tensor, "\t", model.state_dict()[param_tensor])
 print(f'Using {model.__class__} as model')
 
 if used_gpus_count > 1:
@@ -140,7 +138,7 @@ if used_gpus_count > 1:
 Optimizer instanciation
 '''
 
-criterion = torch.nn.MSELoss()
+criterion = torch.nn.BCELoss()
 optimizer = optim.Adam(model.parameters())
 # print(list(model.named_parameters()))
 # raise ValueError
@@ -155,12 +153,15 @@ Experiment Setup
 
 name = args.name
 result_folder, save_path = mkdirs(name)
+print(save_path)
 writer = SummaryWriter(result_folder)
-print(f'Saving result in {name}')
+print(f'Saving result in {result_folder}/{name}')
 
 
+meta = {k:getattr(args, k) for k in dir(args) if not k.startswith("_")}
+meta['edge_map'] = train_loader.dataset.dataset.edge_map
 #save metainfo
-pickle.dump(args, open(os.path.join('trained_models', name, 'args.p'), 'wb'))
+pickle.dump(meta, open(os.path.join(result_folder,  'meta.p'), 'wb'))
 
 import numpy as np
 
@@ -172,7 +173,7 @@ test_inds = test_loader.dataset.indices
 train_inds = train_loader.dataset.indices
 
 pickle.dump(({'test': all_graphs[test_inds], 'train': all_graphs[train_inds]}),
-                open(os.path.join('results', name, 'splits.p'), 'wb'))
+                open(os.path.join(result_folder, 'splits.p'), 'wb'))
 
 wall_time = args.wall_time
 
