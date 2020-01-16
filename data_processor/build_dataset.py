@@ -75,16 +75,16 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph,
 
     G = graph_from_residues(graph, pocket)
     #visualize on 3D structure
-    pdb_to_markers_(structure, G, "markers.cmm")
-    subprocess.call(['chimera', pdb_structure_path, 'markers.cmm'])
+    # pdb_to_markers_(structure, G, "markers.cmm")
+    # subprocess.call(['chimera', pdb_structure_path, 'markers.cmm'])
 
-    os.remove("markers.cmm")
+    # os.remove("markers.cmm")
 
     labels = {d['label'] for _,_,d in G.edges(data=True)}
 
     assert labels.issubset(valid_edges)
 
-    rna_draw(G, title="BINDING")
+    # rna_draw(G, title="BINDING")
 
     if dump_path and (len(G.nodes()) > 4):
         nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_BIND.nx"))
@@ -153,7 +153,7 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
 
 if __name__ == "__main__":
     #take all ligands with 8 angstrom sphere and 0.6 RNA concentration, build a graph for each.
-    get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_pfind',
-                                non_binding=True)
-    # get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','')
+    # get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_pfind',
+                                # non_binding=True)
+    get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_test', non_binding=False)
     pass

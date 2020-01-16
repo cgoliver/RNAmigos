@@ -243,5 +243,5 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
 
 if __name__ == '__main__':
     # annotate_all(parallel=False, graph_path="../data/pockets_nx_2", dump_path="../data/annotated/pockets_nx_2", ablate="")
-    annotate_all(parallel=False, graph_path="../data/pockets_nx_pfind", dump_path="../data/annotated/pockets_nx_pfind", 
-        ablate="", mode='pocket-find')
+    annotate_all(parallel=False, graph_path="../data/pockets_nx_symmetric", dump_path="../data/annotated/pockets_nx_symmetric", 
+        ablate="", mode='fp')

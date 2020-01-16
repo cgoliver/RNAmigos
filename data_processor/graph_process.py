@@ -31,8 +31,12 @@ def to_orig(G):
         label = d['label']
         if label in valid_edges:
             H.add_edge(n1, n2, label=d['label'])
+
+    #add pdb position and nt to node data
     d_orig = {n:d['nucleotide'].pdb_pos for n,d in G.nodes(data=True)}
     nx.set_node_attributes(H, {n:d_orig[n] for n in H.nodes()}, 'pdb_pos')
+    d_orig = {n:d['nucleotide'].nt for n,d in G.nodes(data=True)}
+    nx.set_node_attributes(H, {n:d_orig[n] for n in H.nodes()}, 'nt')
     return H
 
 def kill_islands(G, min_size=4):

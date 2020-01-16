@@ -25,12 +25,16 @@ class V1(Dataset):
                     annotated_path='../data/annotated/pockets_nx',
                     debug=False, 
                     shuffled=False,
-                    get_sim_mat=True):
+                    get_sim_mat=True,
+                    nucs=False):
         self.path = annotated_path
         self.all_graphs = sorted(os.listdir(annotated_path))
         #build edge map
         self.edge_map, self.edge_freqs = self._get_edge_data()
         self.num_edge_types = len(self.edge_map)
+        self.nucs = nucs
+        if nucs:
+            self.nuc_map = {n:i for i,n in enumerate(['A', 'C', 'G', 'N', 'U'])}
 
         print(f"found {self.num_edge_types} edge types, frequencies: {self.edge_freqs}")
 
@@ -54,8 +58,18 @@ class V1(Dataset):
                    (nx.get_edge_attributes(graph, 'label')).items()}
         nx.set_edge_attributes(graph, name='one_hot', values=one_hot)
 
+        node_attrs = None
+        if self.nucs:
+            one_hot_nucs  = {node: torch.tensor(self.nuc_map[label], dtype=torch.float32) for node, label in
+                       (nx.get_node_attributes(graph, 'nt')).items()}
+        else:
+            one_hot_nucs  = {node: torch.tensor(0, dtype=torch.float32) for node, label in
+                       (nx.get_node_attributes(graph, 'nt')).items()}
+
+        nx.set_node_attributes(graph, name='one_hot', values=one_hot_nucs)
+
         g_dgl = dgl.DGLGraph()
-        g_dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'])
+        g_dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'], node_attrs=['one_hot'])
         n_nodes = len(g_dgl.nodes())
         # g_dgl.ndata['h'] = torch.ones((n_nodes, self.emb_size))
         g_dgl.title = self.all_graphs[idx]
@@ -122,7 +136,8 @@ class Loader():
                  sim_function="R_1",
                  debug=False,
                  shuffled=False,
-                 get_sim_mat=True):
+                 get_sim_mat=True,
+                 nucs=False):
         """
         Wrapper class to call with all arguments and that returns appropriate data_loaders
         :param pocket_path:
@@ -140,7 +155,8 @@ class Loader():
                           debug=debug,
                           shuffled=shuffled,
                           sim_function=sim_function,
-                          get_sim_mat=get_sim_mat)
+                          get_sim_mat=get_sim_mat,
+                          nucs=nucs)
 
         self.num_edge_types = self.dataset.num_edge_types
 

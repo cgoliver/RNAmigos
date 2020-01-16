@@ -20,6 +20,7 @@ parser.add_argument('-eo','--embed_only', type=int, help='Number of epochs to tr
 parser.add_argument('-w', '--warm_start', type=str, default=None, help='Path to pre-trained model.')
 parser.add_argument('-pw', '--pos_weight', type=int, default=0, help='Weight for positive examples.')
 parser.add_argument('-po', '--pool', type=str, default='sum', help='Pooling function to use.')
+parser.add_argument("-nu", "--nucs", default=True, help="Use nucleotide IDs for learning", action='store_false')
 parser.add_argument('-rs', '--seed', type=int, default=0, help='Random seed to use (if > 0, else no seed is set).')
 
 args = parser.parse_args()
@@ -83,7 +84,8 @@ print(f'Using batch_size of {batch_size}')
 
 loader = Loader(annotated_path=annotated_path,
                 batch_size=batch_size, num_workers=num_workers,
-                sim_function=args.sim_function)
+                sim_function=args.sim_function,
+                nucs=args.nucs)
 
 train_loader, _, test_loader = loader.get_data()
 
@@ -98,9 +100,16 @@ Model loading
 
 
 #sanity checks
-if dims[-1] != attributor_dims[0]:
+if args.nucs:
+    dim_add = 1
+    attributor_dims[0] += 1
+else:
+    dim_add = 0
+
+if dims[-1] != attributor_dims[0] - dim_add:
     raise ValueError(f"Final embedding size must match first attributor dimension: {dims[-1]} != {attributor_dims[0]}")
 
+print(attributor_dims)
 motif_lam = args.motif_lam
 reconstruction_lam = args.reconstruction_lam
 

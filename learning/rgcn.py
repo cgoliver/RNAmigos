@@ -125,13 +125,14 @@ class Model(nn.Module):
         super(Model, self).__init__()
         # self.num_nodes = num_nodes
         self.dims = dims
+        self.attributor_dims = attributor_dims
         self.num_rels = num_rels
         self.num_bases = num_bases
         self.pos_weight = pos_weight
         self.device = device
 
         if pool == 'att':
-            pooling_gate_nn = nn.Linear(dims[-1], 1)
+            pooling_gate_nn = nn.Linear(attributor_dims[0], 1)
             self.pool = GlobalAttentionPooling(pooling_gate_nn)
         else:
             self.pool = SumPooling()
@@ -142,9 +143,13 @@ class Model(nn.Module):
 
     def forward(self, g):
         embeddings = self.embedder(g)
-        fp = self.pool(g, embeddings)
+        nucs = g.ndata['one_hot'].reshape(-1,1)
+        emb_w_nuc = torch.cat((embeddings, g.ndata['one_hot'].view(-1,1)),1)
+        # fp = self.pool(g, embeddings)
+        fp = self.pool(g, emb_w_nuc)
         fp = self.attributor(fp)
-        return fp, embeddings
+        # return fp, embeddings
+        return fp, emb_w_nuc 
 
     def rec_loss(self, embeddings, target_K, similarity=True):
         """
