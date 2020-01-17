@@ -147,7 +147,7 @@ if __name__ == "__main__":
         lig_ids = []
         for l, model_id, radii in ligs:
             info = f"{model_id}:{l.get_parent().id}:{l.resname}:{l.id[1]}"
-            print(info)
+            print(info, radii)
             lig_ids.append((info, radii))
         lig_dict[os.path.basename(p)] = lig_ids
         # pickle.dump(lig_dict, open('lig_dict.p', 'wb'))
