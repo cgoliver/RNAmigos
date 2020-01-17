@@ -19,7 +19,31 @@ def get_edge_map(graphs_dir):
     return {label: i for i, label in enumerate(sorted(edge_labels))}
 
 
-def nx_to_dgl(graph, edge_map, embed_dim):
+def nx_to_dgl(graph, edge_map, nucs=False):
+    #adding the self edges
+    # graph.add_edges_from([(n, n, {'label': 'X'}) for n in graph.nodes()])
+    graph = nx.to_undirected(graph)
+    one_hot = {edge: torch.tensor(edge_map[label]) for edge, label in
+               (nx.get_edge_attributes(graph, 'label')).items()}
+    nx.set_edge_attributes(graph, name='one_hot', values=one_hot)
+
+    node_attrs = None
+    if nucs:
+        nuc_map = {n:i for i,n in enumerate(['A', 'C', 'G', 'N', 'U'])}
+        one_hot_nucs  = {node: torch.tensor(nuc_map[label], dtype=torch.float32) for node, label in
+                   (nx.get_node_attributes(graph, 'nt')).items()}
+    else:
+        one_hot_nucs  = {node: torch.tensor(0, dtype=torch.float32) for node, label in
+                   (nx.get_node_attributes(graph, 'nt')).items()}
+
+    nx.set_node_attributes(graph, name='one_hot', values=one_hot_nucs)
+
+    g_dgl = dgl.DGLGraph()
+    g_dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'], node_attrs=['one_hot'])
+
+    return graph, g_dgl
+
+def _nx_to_dgl(graph, edge_map, embed_dim):
     """
         Networkx graph to DGL.
     """

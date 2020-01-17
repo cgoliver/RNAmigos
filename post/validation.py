@@ -64,7 +64,11 @@ def distance_rank(active, pred, decoys, dist_func=jaccard):
             rank += 1
     return 1- (rank / (len(decoys) + 1))
 
-def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=False, test_graph_path="../data/annotated/pockets_nx"):
+def decoy_test(model, decoys, edge_map, embed_dim,
+                        test_graphlist=None,
+                        shuffle=False,
+                        nucs=False,
+                        test_graph_path="../data/annotated/pockets_nx"):
     """
         Check performance against decoy set.
         decoys --> {'ligand_id', ('expected_FP', [decoy_fps])}
@@ -95,7 +99,7 @@ def decoy_test(model, decoys, edge_map, embed_dim, test_graphlist=None, shuffle=
         except KeyError:
             print("missing fp", true_id)
             continue
-        nx_graph, dgl_graph = nx_to_dgl(g, edge_map, embed_dim)
+        nx_graph, dgl_graph = nx_to_dgl(g, edge_map, nucs=nucs)
         fp_pred, _ = model(dgl_graph)
 
         if False:
@@ -144,12 +148,12 @@ def generic_fp(annot_dir):
 def ablation_results():
     # modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle']
     modes = ['', 'pair-shuffle']
-    decoys = get_decoys(mode='dude')
+    decoys = get_decoys(mode='pdb')
     ranks, methods = [], []
-    graph_dir = '../data/annotated/pockets_nx'
+    graph_dir = '../data/annotated/pockets_nx_symmetric'
     # graph_dir = '../data/annotated/pockets_nx_2'
     run = "small_no_rec_2"
-    run = 'ypp'
+    run = 'ppp'
     for m in modes:
 
         # if m in ['', 'pair-shuffle']:
@@ -170,7 +174,11 @@ def ablation_results():
         shuffle = False
         if m == 'pair-shuffle':
             shuffle = True
-        ranks_this,sims_this  = decoy_test(model, decoys, edge_map, embed_dim, shuffle=shuffle, test_graphlist=graph_ids['test'], test_graph_path=graph_dir)
+        ranks_this,sims_this  = decoy_test(model, decoys, edge_map, embed_dim,
+            shuffle=shuffle,
+            nucs=meta['nucs'],
+            test_graphlist=graph_ids['train'],
+            test_graph_path=graph_dir)
         test_ligs = []
         ranks.extend(ranks_this)
         methods.extend([m]*len(ranks_this))
@@ -191,29 +199,29 @@ def ablation_results():
         plt.show()
 
         rank_cut = 0.9
-        cool = [graph_ids['test'][i] for i,(d,r) in enumerate(zip(sims_this, ranks_this)) if d <0.4 and r > 0.8]
-        print(cool, len(ranks_this))
+        # cool = [graph_ids['test'][i] for i,(d,r) in enumerate(zip(sims_this, ranks_this)) if d <0.4 and r > 0.8]
+        # print(cool, len(ranks_this))
         #4v6q_#0:BB:FME:3001.nx_annot.p
-        test_ligs = set([f.split(":")[2] for f in graph_ids['test']])
-        train_ligs = set([f.split(":")[2] for f in graph_ids['train']])
-        print("ligands not in train set", test_ligs - train_ligs)
-        points = []
-        tot = len([x for x in ranks_this if x >= rank_cut])
-        for sim_cut in np.arange(0,1.1,0.1):
-            pos = 0
-            for s,r in zip(sims_this, ranks_this):
-                if s < sim_cut and r > rank_cut:
-                    pos += 1
-            points.append(pos / tot)
-        from sklearn.metrics import auc
-        plt.title(f"Top 20% Accuracy {auc(np.arange(0, 1.1, 0.1), points)}, {m}")
-        plt.plot(points, label=m)
-        plt.plot([x for x in np.arange(0,1.1, 0.1)], '--')
-        plt.ylabel("Positives")
-        plt.xlabel("Distance threshold")
-        plt.xticks(np.arange(10), [0, 0.1, 0.2, 0.3, 0.4, 0.5,0.6, 0.7, 0.9, 1.0])
-        plt.legend()
-        plt.show()
+        # test_ligs = set([f.split(":")[2] for f in graph_ids['test']])
+        # train_ligs = set([f.split(":")[2] for f in graph_ids['train']])
+        # print("ligands not in train set", test_ligs - train_ligs)
+        # points = []
+        # tot = len([x for x in ranks_this if x >= rank_cut])
+        # for sim_cut in np.arange(0,1.1,0.1):
+            # pos = 0
+            # for s,r in zip(sims_this, ranks_this):
+                # if s < sim_cut and r > rank_cut:
+                    # pos += 1
+            # points.append(pos / tot)
+        # from sklearn.metrics import auc
+        # plt.title(f"Top 20% Accuracy {auc(np.arange(0, 1.1, 0.1), points)}, {m}")
+        # plt.plot(points, label=m)
+        # plt.plot([x for x in np.arange(0,1.1, 0.1)], '--')
+        # plt.ylabel("Positives")
+        # plt.xlabel("Distance threshold")
+        # plt.xticks(np.arange(10), [0, 0.1, 0.2, 0.3, 0.4, 0.5,0.6, 0.7, 0.9, 1.0])
+        # plt.legend()
+        # plt.show()
 
     df = pd.DataFrame({'rank': ranks, 'method':methods})
     ax = sns.violinplot(x="method", y="rank", data=df, color='0.8')
