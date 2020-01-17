@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 if __name__ == '__main__':
     sys.path.append('../')
 
-from learning.attn import get_attention_map
 from learning.utils import dgl_to_nx
 from post.drawing import rna_draw
 
