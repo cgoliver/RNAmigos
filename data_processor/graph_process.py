@@ -10,7 +10,7 @@ import networkx as nx
 
 faces = ['W', 'S', 'H']
 orientations = ['C', 'T']
-valid_edges = set(['B53'] + [orient + e1 + e2 for e1, e2 in itertools.product(faces, faces) for orient in orientations])
+valid_edges = set(['B53'] + [orient + "".join(sorted(e1 + e2)) for e1, e2 in itertools.product(faces, faces) for orient in orientations])
 
 def remove_self_loops(G):
     selfs = list(nx.selfloop_edges(G))
@@ -23,20 +23,43 @@ def remove_non_standard_edges(G):
             remove.append((n1, n2))
     G.remove_edges_from(remove)
 
+def symmetric(label):
+    """
+        Returns symmetric version of label.
+        e.g symmetric(CHW) = CHW, symmetric(CWH) = CHW
+    """
+    #if not a base pair keep the same
+    if label[0] not in ['C', 'T']:
+        return label
+    else:
+        return label[0] + "".join(sorted(label[1:]))
+
 def to_orig(G):
+    """
+        Convert new networkx graphs (from vlad 2019) to original format.
+        Keep only B53 and 12 base pair interactions.
+        Annotate nodes with position, chain, and nucleotide ID attributes.
+
+        Arguments:
+            G (networkx graph): networkx graph to convert to original.
+        Returns:
+            networkx graph
+    """
     remove_self_loops(G)
     # remove_non_standard_edges(G)
     H = nx.Graph()
     for n1, n2, d in G.edges(data=True):
-        label = d['label']
+        label = symmetric(d['label'])
         if label in valid_edges:
-            H.add_edge(n1, n2, label=d['label'])
+            H.add_edge(n1, n2, label=label)
 
     #add pdb position and nt to node data
     d_orig = {n:d['nucleotide'].pdb_pos for n,d in G.nodes(data=True)}
     nx.set_node_attributes(H, {n:d_orig[n] for n in H.nodes()}, 'pdb_pos')
     d_orig = {n:d['nucleotide'].nt for n,d in G.nodes(data=True)}
     nx.set_node_attributes(H, {n:d_orig[n] for n in H.nodes()}, 'nt')
+    d_orig = {n:n[0] for n,d in G.nodes(data=True)}
+    nx.set_node_attributes(H, {n:d_orig[n] for n in H.nodes()}, 'chain')
     return H
 
 def kill_islands(G, min_size=4):

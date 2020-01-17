@@ -51,6 +51,7 @@ def get_valids(lig_dict, max_dist, min_conc, min_size=4):
                 #scan until concentration is met and still under maximum distance.
                 if (rna_conc >= min_conc and c['cutoff'] <= max_dist) and ligand_filter(lig_name, kill):
                     ok_ligs[pdb].append(lig_id)
+                    print(lig_id)
                     unique_ligs.add(lig_name)
                     break
     print(f">>> Filtering ligands from {len(lig_dict)} PDBs.")
@@ -76,5 +77,5 @@ if __name__ == "__main__":
     c = 10
     conc = .6
     ligs = get_valids(d, c, conc, min_size=5)
-    pickle.dump(ligs, open("../data/lig_dict_r10_d06.p", "wb"))
+    # pickle.dump(ligs, open("../data/lig_dict_r10_d06.p", "wb"))
     # ligs_to_txt(ligs)

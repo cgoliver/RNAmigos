@@ -3,7 +3,7 @@
     and builds a networkx binding site graph for each ligand.
 """
 
-import sys
+import os, sys
 if __name__ == "__main__":
     sys.path.append("..") 
 import pickle
@@ -15,8 +15,7 @@ import networkx as nx
 from Bio.PDB import *
 from tqdm import tqdm
 
-from tools.rna_draw import *
-from post.drawing import rna_draw
+from tools.drawing import rna_draw 
 from data_processor.pocket_grid import sample_non_binding_sites
 from data_processor.rna_classes import *
 from data_processor.graph_process import *
@@ -62,9 +61,9 @@ def graph_from_residues(full_graph, residues, expand_depth=0):
         if node is not None:
             pocket_nodes.append(node)
     if expand_depth:
-        expand = bfs_expand(full_graph, pocket_nodes, depth=expand_depth)
+        pocket_nodes = bfs_expand(full_graph, pocket_nodes, depth=expand_depth)
 
-    pocket_graph = full_graph.subgraph(expand).copy()
+    pocket_graph = full_graph.subgraph(pocket_nodes).copy()
     G = to_orig(pocket_graph)
 
     #remove bases with no connections
@@ -95,6 +94,7 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph,
             networkx graph: graph representing binding site around ligand.
     """
     #load PDB
+    print(ligand_id)
     parser = MMCIFParser(QUIET=True)
     pdbid = os.path.basename(pdb_structure_path).split(".")[0]
     structure = parser.get_structure("", pdb_structure_path)[0]
@@ -122,10 +122,11 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph,
 
     assert labels.issubset(valid_edges)
 
-    # rna_draw(G, title="BINDING")
+    print(pocket)
+    rna_draw(G, title="BINDING")
 
-    if dump_path and (len(G.nodes()) > 4):
-        nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_BIND.nx"))
+    # if dump_path and (len(G.nodes()) > 4):
+        # nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_BIND.nx"))
 
     #sample and build non-binding graph.
     if non_binding:
@@ -173,14 +174,15 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
         pass
 
     done_pdbs = {f.split('_')[0] for f in os.listdir(dump_path)}
+    print(f">>> skipping {done_pdbs}")
 
     failed = []
     missing_graphs = []
     for pdbid, ligs in tqdm(lig_dict.items()):
         pdbid =  pdbid.split(".")[0]
         pdb_path = f"../data/all_rna_prot_lig_2019/{pdbid}.cif"
-        if pdbid in done_pdbs:
-            continue
+        # if pdbid in done_pdbs:
+            # continue
         # try:
         print(">>> ", pdbid)
         try:
@@ -194,7 +196,6 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
         # continue
         for lig in ligs:
             #dump binding site graphs
-            continue
             try:
                 get_pocket_graph(pdb_path, lig,
                                 pdb_graph, dump_path=dump_path,
@@ -210,5 +211,5 @@ if __name__ == "__main__":
     #take all ligands with 8 angstrom sphere and 0.6 RNA concentration, build a graph for each.
     # get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_pfind',
                                 # non_binding=True)
-    get_binding_site_graphs_all('../data/lig_dict_r10_d06.p', '../data/pockets_nx_large', non_binding=False)
+    get_binding_site_graphs_all('../data/lig_dict_c_10A_08rna.p', '../data/pockets_nx_large', non_binding=False)
     pass

@@ -129,7 +129,8 @@ def binding_wrapper(strucpath):
         return None
 
 if __name__ == "__main__":
-    PDB_PATH = os.path.join("..", "data", "all_rna_prot_lig_2019")
+    # PDB_PATH = os.path.join("..", "data", "all_rna_prot_lig_2019")
+    PDB_PATH = os.path.join("..", '..', 'carlos_docking', "data", "all_rna_with_lig_2019")
     pdbs = [os.path.join(PDB_PATH, p) for p in os.listdir(PDB_PATH)]
     num_pdbs = len(pdbs)
     lig_dict = {}
@@ -150,5 +151,5 @@ if __name__ == "__main__":
             print(info, radii)
             lig_ids.append((info, radii))
         lig_dict[os.path.basename(p)] = lig_ids
-        # pickle.dump(lig_dict, open('lig_dict.p', 'wb'))
+        pickle.dump(lig_dict, open('lig_dict_ismb.p', 'wb'))
     pass
