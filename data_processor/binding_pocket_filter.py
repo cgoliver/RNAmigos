@@ -35,12 +35,11 @@ def get_valids(lig_dict, max_dist, min_conc, min_size=4):
             dict: Dictionary keyed by pbid with list of ligand redidue IDs that pass the tests.
     """
     ok_ligs = defaultdict(list)
-    kill = ['IRI', 'UNL', 'UNX']
+    kill = ['IRI', 'UNL', 'UNX', 'XXX']
     unique_ligs = set()
     for pdb, ligands in lig_dict.items():
         for lig_id,lig_cuts in ligands:
             lig_name = lig_id.split(":")[1]
-            unique_ligs.add(lig_name)
             #go over each distance cutoff
             for c in lig_cuts:
                 tot = c['rna'] + c['protein']
@@ -52,13 +51,16 @@ def get_valids(lig_dict, max_dist, min_conc, min_size=4):
                 #scan until concentration is met and still under maximum distance.
                 if (rna_conc >= min_conc and c['cutoff'] <= max_dist) and ligand_filter(lig_name, kill):
                     ok_ligs[pdb].append(lig_id)
+                    unique_ligs.add(lig_name)
                     break
     print(f">>> Filtering ligands from {len(lig_dict)} PDBs.")
-    print(f">>> Maximum distance from ligand {max_dist}, minimum RNA concentration {min_conc}")
+    print(f">>> minimum number of bases in pocket {min_size}")
+    print(f">>> maximum distance from ligand {max_dist}")
+    print(f">>> minimum RNA concentration {min_conc}")
     print(f">>> retained {len(ok_ligs)} PDBs")
     print(f">>> with a total of {sum(map(len,ok_ligs.values()))} binding sites")
     print(f">>> and {len(unique_ligs)} unique ligands.")
-    print("passed ligands", unique_ligs)
+    print(f">>> passed ligands", unique_ligs)
     return ok_ligs
 
 def ligs_to_txt(d, dest="../data/ligs.txt"):
@@ -72,6 +74,7 @@ def ligs_to_txt(d, dest="../data/ligs.txt"):
 if __name__ == "__main__":
     d = pickle.load(open('../data/lig_dict.p', 'rb'))
     c = 10
-    conc = .8
+    conc = .6
     ligs = get_valids(d, c, conc, min_size=5)
+    pickle.dump(ligs, open("../data/lig_dict_r10_d06.p", "wb"))
     # ligs_to_txt(ligs)

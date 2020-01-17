@@ -1,5 +1,6 @@
 """
-    Build graph dataset for learning and for annotation later.
+    Takes ligand residue IDs from lig_dict (built by `binding_pocket_filter.py`)
+    and builds a networkx binding site graph for each ligand.
 """
 
 import sys
@@ -16,10 +17,10 @@ from tqdm import tqdm
 
 from tools.rna_draw import *
 from post.drawing import rna_draw
-from pocket_grid import sample_non_binding_sites
-from rna_classes import *
-from graph_process import *
-from marker_file import *
+from data_processor.pocket_grid import sample_non_binding_sites
+from data_processor.rna_classes import *
+from data_processor.graph_process import *
+from data_processor.marker_file import *
 
 faces = ['W', 'S', 'H']
 orientations = ['C', 'T']
@@ -29,41 +30,78 @@ def lig_center(lig_atoms):
     return np.mean(np.array([a.coord for a in lig_atoms]), axis=0)
 
 def find_residue(chain, pos):
+    """
+        Get BioPython residue object from chain and position.
+
+        Arguments:
+            chain (BioPython.Chain): chain object
+            pos (int): position on chain
+        Returns:
+            Bio.PDB.Residue: residue object matching position.
+    """
     for residue in chain:
         if residue.id[1] == pos:
             return residue
     return None
 
-def graph_from_residues(full_graph, residues):
+def graph_from_residues(full_graph, residues, expand_depth=0):
     """
         Build an NX graph from list of biopython residues.
+
+        Arguments:
+            full_graph (Networkx graph): networkx graph of full RNA structure.
+            residues (list): list of BioPython Residues to get graph for.
+            expand_depth (int): number of hops in graph to extend pocket by.
+
+        Returns:
+            Networkx graph: networkx graph with nodes matching `residuses`
     """
     pocket_nodes = []
     for r in residues:
         node = find_node(full_graph, r.get_parent().id, r.id[1])
         if node is not None:
             pocket_nodes.append(node)
-    expand = bfs_expand(full_graph, pocket_nodes, depth=1)
+    if expand_depth:
+        expand = bfs_expand(full_graph, pocket_nodes, depth=expand_depth)
+
     pocket_graph = full_graph.subgraph(expand).copy()
     G = to_orig(pocket_graph)
+
+    #remove bases with no connections
     kill_islands(G)
+    #remove dangles (only backbone interactions not in loops)
     G = dangle_trim(G)
 
     return G
 
-def get_pocket_graph(pdb_structure_path, ligand_id, graph, 
-        ablate=None, dump_path="../data/pockets_nx", cutoff=8,
+def get_pocket_graph(pdb_structure_path, ligand_id, graph,
+        ablate=None, dump_path="../data/pockets_nx", cutoff=10,
         non_binding=False, max_non_bind_samples=5):
     """
         Main function for extracting a graph from a binding site.
+        Dumps graph representing the pocket around given ligand in PDB.
 
+        Arguments;
+            pdb_structure_path (str): path to full PDB structure
+            ligand_id (str): string describing ligand position in PDB
+            graph (Networkx): full graph of RNA structure
+            ablate (str): which ablation to perform on final graph (see `graph_process.py`)
+            dump_path (str): path to write binding site graph
+            cutoff (int): Maximum distance from ligand to include for graph residues. (default=10)
+            non_binding (bool): If True, samples non-binding sites for each binding site (default=False).
+            max_non_bind_sample (int): Number of non-binding sites to sample. (default=5)
+
+        Returns:
+            networkx graph: graph representing binding site around ligand.
     """
+    #load PDB
     parser = MMCIFParser(QUIET=True)
     pdbid = os.path.basename(pdb_structure_path).split(".")[0]
     structure = parser.get_structure("", pdb_structure_path)[0]
 
     chain,resname, pos = ligand_id.split(":")[1:]
 
+    #find ligand residue and get its center coordinates
     lig_residue = find_residue(structure[chain], int(pos))
     lig_res_atoms = lig_residue.get_atoms()
     lig_coord = lig_center(lig_res_atoms)
@@ -74,9 +112,9 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph,
 
 
     G = graph_from_residues(graph, pocket)
+
     #visualize on 3D structure
-    # pdb_to_markers_(structure, G, "markers.cmm")
-    # subprocess.call(['chimera', pdb_structure_path, 'markers.cmm'])
+    # pdb_to_markers_(structure, G, "markers.cmm") # subprocess.call(['chimera', pdb_structure_path, 'markers.cmm'])
 
     # os.remove("markers.cmm")
 
@@ -99,7 +137,7 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph,
             if pocket:
                 non_bind_graph = graph_from_residues(graph, pocket)
                 if dump_path and (len(non_bind_graph.nodes()) > 4):
-                    nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_NON_{sampled}.nx"))
+                    # nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_NON_{sampled}.nx"))
                     sampled += 1
                 # rna_draw(non_bind_graph, title="NON BINDING")
                 # pdb_to_markers_(structure, non_bind_graph, "markers.cmm")
@@ -124,6 +162,9 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
 
     lig_dict = pickle.load(open(lig_dict_path, 'rb'))
 
+    print(f">>> building graphs for {len(lig_dict)} PDBs")
+    print(f">>> and {sum(map(len, lig_dict.values()))} binding sites.")
+
     failed = 0
 
     try:
@@ -134,8 +175,10 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
     done_pdbs = {f.split('_')[0] for f in os.listdir(dump_path)}
 
     failed = []
+    missing_graphs = []
     for pdbid, ligs in tqdm(lig_dict.items()):
         pdbid =  pdbid.split(".")[0]
+        pdb_path = f"../data/all_rna_prot_lig_2019/{pdbid}.cif"
         if pdbid in done_pdbs:
             continue
         # try:
@@ -144,12 +187,14 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
             pdb_graph = pickle.load(open(f'../data/RNA_Graphs/{pdbid}.pickle', 'rb'))
         except FileNotFoundError:
             print(f"{pdbid} graph not found.")
+            print(f"{pdbid} had {len(ligs)} binding sites")
+            missing_graphs.append(pdbid)
             continue
         # print(f"new guy: {pdbid}")
         # continue
         for lig in ligs:
-            pdb_path = f"../data/all_rna_prot_lig_2019/{pdbid}.cif"
             #dump binding site graphs
+            continue
             try:
                 get_pocket_graph(pdb_path, lig,
                                 pdb_graph, dump_path=dump_path,
@@ -157,6 +202,7 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
             except FileNotFoundError:
                 print(f"{pdbid} not found")
                 failed.append(pdbid)
+    print(f">>> missing graphs for {missing_graphs}")
     print(failed)
 
 
@@ -164,5 +210,5 @@ if __name__ == "__main__":
     #take all ligands with 8 angstrom sphere and 0.6 RNA concentration, build a graph for each.
     # get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_pfind',
                                 # non_binding=True)
-    get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_test', non_binding=False)
+    get_binding_site_graphs_all('../data/lig_dict_r10_d06.p', '../data/pockets_nx_large', non_binding=False)
     pass
