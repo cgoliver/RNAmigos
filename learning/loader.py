@@ -175,39 +175,52 @@ class Loader():
 
         self.num_edge_types = self.dataset.num_edge_types
 
-    def get_data(self):
+    def get_data(self, k_fold=0):
         n = len(self.dataset)
         indices = list(range(n))
 
-        split_train, split_valid = 0.8, 0.8
-        train_index, valid_index = int(split_train * n), int(split_valid * n)
+        if k_fold > 1:
+            from sklearn.model_selection import KFold
+            for train_indices, test_indices in kf.split(np.array(indices)):
+                train_set = Subset(self.dataset, train_indices)
+                test_set = Subset(self.dataset, test_indices)
 
-        train_indices = indices[:train_index]
-        valid_indices = indices[train_index:valid_index]
-        test_indices = indices[valid_index:]
+                collate_block = collate_wrapper(self.dataset.node_sim_func)
 
-        train_set = Subset(self.dataset, train_indices)
-        valid_set = Subset(self.dataset, valid_indices)
-        test_set = Subset(self.dataset, test_indices)
+                train_loader = DataLoader(dataset=train_set, shuffle=True, batch_size=self.batch_size,
+                                          num_workers=self.num_workers, collate_fn=collate_block)
+                test_loader = DataLoader(dataset=test_set, shuffle=True, batch_size=self.batch_size,
+                                         num_workers=self.num_workers, collate_fn=collate_block)
 
-        print("training graphs ", len(train_set))
-        print("testing graphs ", len(test_set))
+                yield train_loader, test_loader
 
-        collate_block = collate_wrapper(self.dataset.node_sim_func)
 
-        train_loader = DataLoader(dataset=train_set, shuffle=True, batch_size=self.batch_size,
-                                  num_workers=self.num_workers, collate_fn=collate_block)
-        # valid_loader = DataLoader(dataset=valid_set, shuffle=True, batch_size=self.batch_size,
-        #                           num_workers=self.num_workers, collate_fn=collate_block)
-        test_loader = DataLoader(dataset=test_set, shuffle=True, batch_size=self.batch_size,
+        else:
+            split_train, split_valid = 0.8, 0.8
+            train_index, valid_index = int(split_train * n), int(split_valid * n)
+
+            train_indices = indices[:train_index]
+            test_indices = indices[train_index:]
+
+            train_set = Subset(self.dataset, train_indices)
+            test_set = Subset(self.dataset, test_indices)
+
+            print("training graphs ", len(train_set))
+            print("testing graphs ", len(test_set))
+
+            collate_block = collate_wrapper(self.dataset.node_sim_func)
+
+            train_loader = DataLoader(dataset=train_set, shuffle=True, batch_size=self.batch_size,
+                                      num_workers=self.num_workers, collate_fn=collate_block)
+            test_loader = DataLoader(dataset=test_set, shuffle=True, batch_size=self.batch_size,
                                  num_workers=self.num_workers, collate_fn=collate_block)
 
-        # return train_loader, valid_loader, test_loader
-        return train_loader, 0, test_loader
+            # return train_loader, valid_loader, test_loader
+            yield train_loader, test_loader
 
 if __name__ == '__main__':
     loader = Loader(shuffle=False,seed=99, batch_size=1, num_workers=1)
-    train,_,test = loader.get_data()
+    train,test = loader.get_data()
     for t in train:
         break
     pass
