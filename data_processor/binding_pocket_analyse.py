@@ -130,7 +130,7 @@ def binding_wrapper(strucpath):
 
 if __name__ == "__main__":
     # PDB_PATH = os.path.join("..", "data", "all_rna_prot_lig_2019")
-    PDB_PATH = os.path.join("..", '..', 'carlos_docking', "data", "all_rna_with_lig_2019")
+    PDB_PATH = os.path.join("..", '..', 'carlos_dock', "data", "all_rna_with_lig_2019")
     pdbs = [os.path.join(PDB_PATH, p) for p in os.listdir(PDB_PATH)]
     num_pdbs = len(pdbs)
     lig_dict = {}
@@ -138,8 +138,9 @@ if __name__ == "__main__":
     todo = iter(pdbs)
     num_done = 0
 
-    # for result in pool.imap_unordered(get_binding, todo):
-    for result in map(binding_wrapper, todo):
+    pool = multiprocessing.Pool(processes=20)
+    for result in pool.imap_unordered(full_struc_analyse, todo):
+    # for result in map(binding_wrapper, todo):
         if result is None:
             continue
         ligs, p = result
