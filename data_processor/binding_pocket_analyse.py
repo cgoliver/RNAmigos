@@ -74,11 +74,15 @@ def full_struc_analyse(strucpath):
                                 `[(lig_res_id, {'rna_count' int, 'prot_count', int, 'cutoff', int})]`
 
     """
-    #load mmCIF structure
-    struc_dict = MMCIF2Dict.MMCIF2Dict(strucpath)
-    #load PDB
-    parser = MMCIFParser(QUIET=True)
-    pdbstruc = parser.get_structure("", strucpath)
+    try:
+        #load mmCIF structure
+        struc_dict = MMCIF2Dict.MMCIF2Dict(strucpath)
+        #load PDB
+        parser = MMCIFParser(QUIET=True)
+        pdbstruc = parser.get_structure("", strucpath)
+    except Exception as e:
+        print("Structure loading error {e}")
+        return None 
 
     ligand_dict = {}
     try:
@@ -89,6 +93,7 @@ def full_struc_analyse(strucpath):
 
     except:
         print("Ligand not detected.")
+        return None 
 
     num_models = len(pdbstruc)
     model = pdbstruc[0]
@@ -128,20 +133,37 @@ def binding_wrapper(strucpath):
         print(f"Failed on {strucpath} :: {e}")
         return None
 
-if __name__ == "__main__":
+def process_all(pdb_path, dump_path, restart=None, parallel=False):
+    """
+        Main function for building full lig_dict.
+
+        Arguments:
+            pdb_path (str): path to PDBs
+            dump_path (str): file path to write lig_dict.
+            restart (str): path to dictionary to start from.
+            parallel (bool): If True runs with multiprocessing
+    """
     # PDB_PATH = os.path.join("..", "data", "all_rna_prot_lig_2019")
-    PDB_PATH = os.path.join("..", '..', 'carlos_dock', "data", "all_rna_with_lig_2019")
-    pdbs = [os.path.join(PDB_PATH, p) for p in os.listdir(PDB_PATH)]
+    pdbs = [os.path.join(pdb_path, p) for p in os.listdir(pdb_path)]
     num_pdbs = len(pdbs)
+    done = []
+    if not restart is None:
+        try:
+            r = pickle.load(open(restart, 'rb'))
+            done = list(r.keys())
+        except FileNotFoundError:
+            print(f"Could not load dict {restart}")
+
     lig_dict = {}
 
-    todo = iter(pdbs)
+    todo = iter([p for p in pdbs if p not in done])
     num_done = 0
 
     pool = multiprocessing.Pool(processes=20)
     for result in pool.imap_unordered(full_struc_analyse, todo):
     # for result in map(binding_wrapper, todo):
         if result is None:
+            print("failed")
             continue
         ligs, p = result
         num_done += 1
@@ -152,5 +174,8 @@ if __name__ == "__main__":
             print(info, radii)
             lig_ids.append((info, radii))
         lig_dict[os.path.basename(p)] = lig_ids
-        pickle.dump(lig_dict, open('lig_dict_ismb.p', 'wb'))
+        pickle.dump(lig_dict, open(dump_path, 'wb'))
     pass
+if __name__ == "__main__":
+    pdb_path = os.path.join("..", '..', 'carlos_docking', "data", "all_rna_with_lig_2019")
+    process_all(pdb_path, "../data/lig_dict_ismb.p", restart="../data/lig_dict.p")
