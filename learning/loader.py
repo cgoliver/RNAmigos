@@ -13,20 +13,25 @@ import dgl
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, Subset
-import seaborn as sns
-import matplotlib.pyplot as plt
-
 
 from data_processor.node_sim import SimFunctionNode, k_block_list
-
 
 class V1(Dataset):
     def __init__(self, sim_function="R_1",
                     annotated_path='../data/annotated/pockets_nx',
-                    debug=False, 
-                    shuffled=False,
                     get_sim_mat=True,
-                    nucs=False):
+                    nucs=False,
+                    depth=3):
+        """
+            Setup for data loader.
+
+            Arguments:
+                sim_function (str): which node kernel to use (default='R1', see `node_sim.py`).
+                annotated_path (str): path to annotated graphs (see `annotator.py`).
+                get_sim_mat (bool): whether to compute a node similarity matrix (deault=True).
+                nucs (bool): whether to include nucleotide ID in node (default=False).
+                depth (int): number of hops to use in the node kernel.
+        """
         self.path = annotated_path
         self.all_graphs = sorted(os.listdir(annotated_path))
         #build edge map
@@ -34,11 +39,12 @@ class V1(Dataset):
         self.num_edge_types = len(self.edge_map)
         self.nucs = nucs
         if nucs:
+            print(">>> storing nucleotide IDs")
             self.nuc_map = {n:i for i,n in enumerate(['A', 'C', 'G', 'N', 'U'])}
 
-        print(f"found {self.num_edge_types} edge types, frequencies: {self.edge_freqs}")
+        print(f">>> found {self.num_edge_types} edge types, frequencies: {self.edge_freqs}")
 
-        self.node_sim_func = SimFunctionNode(method=sim_function, IDF=self.edge_freqs, depth=4)
+        self.node_sim_func = SimFunctionNode(method=sim_function, IDF=self.edge_freqs, depth=depth)
 
         self.n = len(self.all_graphs)
 
@@ -49,6 +55,9 @@ class V1(Dataset):
         return self.n
 
     def __getitem__(self, idx):
+        """
+            Returns one training item at index `idx`.
+        """
         graph, _, ring, fp = pickle.load(open(os.path.join(self.path, self.all_graphs[idx]), 'rb'))
 
         #adding the self edges
@@ -70,8 +79,6 @@ class V1(Dataset):
 
         g_dgl = dgl.DGLGraph()
         g_dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'], node_attrs=['one_hot'])
-        n_nodes = len(g_dgl.nodes())
-        # g_dgl.ndata['h'] = torch.ones((n_nodes, self.emb_size))
         g_dgl.title = self.all_graphs[idx]
 
         if self.get_sim_mat:
@@ -124,7 +131,6 @@ def collate_wrapper(node_sim_func, get_sim_mat=True):
             graphs, _, fp = map(list, zip(*samples))
             fp = np.array(fp)
             batched_graph = dgl.batch(graphs)
-            len_graphs = [len(graph) for graph in samples]
             return batched_graph, [1 for _ in samples], torch.from_numpy(fp)
     return collate_block
 
@@ -137,7 +143,8 @@ class Loader():
                  debug=False,
                  shuffled=False,
                  get_sim_mat=True,
-                 nucs=False):
+                 nucs=False,
+                 depth=3):
         """
         Wrapper class to call with all arguments and that returns appropriate data_loaders
         :param pocket_path:
@@ -156,7 +163,8 @@ class Loader():
                           shuffled=shuffled,
                           sim_function=sim_function,
                           get_sim_mat=get_sim_mat,
-                          nucs=nucs)
+                          nucs=nucs,
+                          depth=depth)
 
         self.num_edge_types = self.dataset.num_edge_types
 
@@ -192,79 +200,5 @@ class Loader():
         # return train_loader, valid_loader, test_loader
         return train_loader, 0, test_loader
 
-
-pass
-# for batch_idx, (graph, K) in enumerate(dataloader):
-#     print(len(graph.nodes))
-#     print(K.shape)
-
-
-def test_train():
-    # dataset = V1()
-    # dataloader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=20, collate_fn=collate_block)
-
-    loader = Loader(annotated_path='../data/annotated/samples', batch_size=129, num_workers=20)
-    # loader = Loader(annotated_path=annotated_path, batch_size=batch_size, num_workers=num_workers)
-
-    train_loader, _, test_loader = loader.get_data()
-    max_epochs = 800
-
-    model = rgcn.Model(in_dim=128, h_dim=128, out_dim=128, num_rels=num_edge_types, num_bases=-1, num_hidden_layers=1)
-
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda:0" if use_cuda else "cpu")
-    model = model.to(device)
-    optimizer = torch.optim.Adam(model.parameters())
-    # optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
-
-    plot = False
-    model.train()
-    # Loop over epochs
-    for i, epoch in enumerate(range(max_epochs)):
-        # Training
-
-        loser = torch.nn.MSELoss()
-        total_loss = 0
-        time_epoch = time.perf_counter()
-
-        for batch_idx, (graph, K) in enumerate(train_loader):
-            print(len(K))
-            optimizer.zero_grad()
-            out = model(graph)
-            # print(out)
-            # size_block = len(out)
-
-            K = torch.ones(K.shape) - K
-            K_predict = torch.norm(out[:, None] - out, dim=2, p=2)
-
-            # K_predict = torch.mm(out, out.t())
-            # print(K_predict.size())
-            # print(size_block)
-            # print(K_predict)
-            # print(K)
-            # sys.exit()
-
-            loss = loser(K_predict, K)
-            total_loss += loss.item()
-            loss.backward()
-            optimizer.step()
-
-        if plot and not i % 10:
-            fig, (ax1, ax2, ax3) = plt.subplots(3)
-            args = {'vmin': 0, 'vmax': 1}
-            sns.heatmap(out.detach().numpy(), ax=ax1)
-            ax1.set_title("Z")
-            sns.heatmap(K_predict.detach().numpy(), ax=ax2, **args)
-            ax2.set_title("pred")
-            sns.heatmap(K.detach().numpy(), ax=ax3, **args)
-            ax3.set_title("K")
-            fig.suptitle(f'epoch {i}, loss: {total_loss}')
-            plt.tight_layout()
-            plt.show()
-        print(f'epoch number {i} loss = {total_loss}, time = {time.perf_counter() - time_epoch}')
-
-
 if __name__ == '__main__':
-    import rgcn as rgcn
-    import time
-    test_train()
+    pass
