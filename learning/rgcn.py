@@ -1,27 +1,25 @@
 """
-DGL : batched graphs is using the collate function
-"""
+Script for RGCN model.
 
 """
-Geometric : Graph object + Batch object
-RGCN layer is easier
-"""
-
-"""
-https://docs.dgl.ai/tutorials/models/1_gnn/4_rgcn.html#sphx-glr-tutorials-models-1-gnn-4-rgcn-py
-"""
+from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import dgl
 import dgl.function as fn
 from dgl.nn.pytorch.glob import SumPooling,GlobalAttentionPooling
-from functools import partial
-import dgl
 from dgl import mean_nodes
 from dgl.nn.pytorch.conv import RelGraphConv
 
 
 class Attributor(nn.Module):
+    """
+        NN which makes a prediction (fp or binding/non binding) from a pooled
+        graph embedding.
+
+        Linear/ReLu layers with Sigmoid in output since fingerprints between 0 and 1.
+    """
     def __init__(self, dims):
         super(Attributor, self).__init__()
         # self.num_nodes = num_nodes
@@ -50,6 +48,9 @@ class Attributor(nn.Module):
         return self.net(x)
 
 class Embedder(nn.Module):
+    """
+        Model for producing node embeddings.
+    """
     def __init__(self, dims, num_rels=19, num_bases=-1):
         super(Embedder, self).__init__()
         self.dims = dims
@@ -74,9 +75,7 @@ class Embedder(nn.Module):
             layers.append(h2h)
         # hidden to output
         h2o = self.build_output_layer(last_hidden, last)
-        # print('last',last_hidden,last)
         layers.append(h2o)
-        # print(layers)
         return layers
 
     @property
@@ -110,7 +109,7 @@ class Embedder(nn.Module):
 # ~~~~~~~~~~~~~~~~~~~~~~~
 class Model(nn.Module):
     def __init__(self, dims, device, attributor_dims, num_rels, pool='att', num_bases=-1,
-                             pos_weight=0):
+                             pos_weight=0, nucs=True):
         """
 
         :param dims: the embeddings dimensions
@@ -130,6 +129,7 @@ class Model(nn.Module):
         self.num_bases = num_bases
         self.pos_weight = pos_weight
         self.device = device
+        self.nucs = nucs
 
         if pool == 'att':
             pooling_gate_nn = nn.Linear(attributor_dims[0], 1)
@@ -143,13 +143,12 @@ class Model(nn.Module):
 
     def forward(self, g):
         embeddings = self.embedder(g)
-        nucs = g.ndata['one_hot'].reshape(-1,1)
-        emb_w_nuc = torch.cat((embeddings, g.ndata['one_hot'].view(-1,1)),1)
-        # fp = self.pool(g, embeddings)
-        fp = self.pool(g, emb_w_nuc)
+        if self.nucs:
+            nucs = g.ndata['one_hot'].reshape(-1,1)
+            embeddings = torch.cat((embeddings, g.ndata['one_hot'].view(-1,1)),1)
+        fp = self.pool(g, embeddings)
         fp = self.attributor(fp)
-        # return fp, embeddings
-        return fp, emb_w_nuc 
+        return fp, embeddings
 
     def rec_loss(self, embeddings, target_K, similarity=True):
         """
