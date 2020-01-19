@@ -45,7 +45,6 @@ def set_gradients(model, embedding=True, attributor=True):
     for param in model.named_parameters():
         name, p = param
         name = name.split('.')[0]
-        print(name)
         if name in ['attributor', 'pool']:
             p.requires_grad = attributor
         if name == 'embedder':
@@ -93,8 +92,6 @@ def test(model, test_loader, device):
         del loss
 
     return test_loss / test_size
-    # torch.cuda.empty_cache()
-    # torch.cuda.synchronize( test_loss / test_size
 
 def train_model(model, criterion, optimizer, device, train_loader, test_loader, save_path,
                 writer=None, num_epochs=25, wall_time=None,
@@ -237,37 +234,5 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
     return best_loss
 
-
-def make_predictions(data_loader, model, optimizer, model_weights_path):
-    """
-    :param data_loader: an iterator on input data
-    :param model: An empty model
-    :param optimizer: An empty optimizer
-    :param model_weights_path: the path of the model to load
-    :return: list of predictions
-    """
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    checkpoint = torch.load(model_weights_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    model.eval()
-
-    predictions = []
-
-    for batch_idx, inputs in enumerate(data_loader):
-        inputs = inputs.to(device)
-        predictions.append(model(inputs))
-    return predictions
-
-
 if __name__ == "__main__":
     pass
-# parser = argparse.ArgumentParser()
-# parser.add_argument('--data_dir', default='../data/testset')
-# parser.add_argument('--out_dir', default='Submissions/')
-# parser.add_argument(
-#     '--model_path', default='results/base_wr_lr01best_model.pth')
-# args = parser.parse_args()
-# make_predictions(args.data_dir, args.out_dir, args.model_path)
-
