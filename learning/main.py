@@ -43,10 +43,7 @@ if args.seed > 0:
     torch.backends.cudnn.benchmark = False
 
 # Homemade modules
-if args.timed:
-    import learning.timed_learning as learn
-else:
-    import learning.learn as learn
+import learning.learn as learn
 from learning.loader import Loader
 from learning.rgcn import Model
 
@@ -79,7 +76,6 @@ annotated_name = args.annotated_data
 annotated_path = os.path.join(annotated_file, annotated_name)
 print(f'Using {annotated_path} as the pocket inputs')
 
-# batch_size = 8
 batch_size = args.batch_size
 num_workers = args.workers
 
@@ -105,7 +101,7 @@ Model loading
 '''
 
 
-#sanity checks
+#increase output embeddings by 1 for nuc info
 if args.nucs:
     dim_add = 1
     attributor_dims[0] += 1
@@ -115,18 +111,15 @@ else:
 if dims[-1] != attributor_dims[0] - dim_add:
     raise ValueError(f"Final embedding size must match first attributor dimension: {dims[-1]} != {attributor_dims[0]}")
 
-print(attributor_dims)
 motif_lam = args.motif_lam
 reconstruction_lam = args.reconstruction_lam
 
 model = Model(dims, device, attributor_dims=attributor_dims,
               num_rels=loader.num_edge_types,
-              num_bases=-1, pool='att',
-              pos_weight=args.pos_weight)
+              num_bases=-1, pool=args.pool,
+              pos_weight=args.pos_weight,
+              nucs=nucs)
 
-# for param_tensor in model.state_dict():
-    # if 'embedder' in param_tensor:
-        # print(param_tensor, "\t", model.state_dict()[param_tensor])
 #if pre-trained initialize matching layers
 if args.warm_start:
     print("warm starting")
@@ -179,9 +172,6 @@ meta['edge_map'] = train_loader.dataset.dataset.edge_map
 pickle.dump(meta, open(os.path.join(result_folder,  'meta.p'), 'wb'))
 
 import numpy as np
-
-if args.seed > 0:
-    np.random.seed(args.seed)
 
 all_graphs = np.array(test_loader.dataset.dataset.all_graphs)
 test_inds = test_loader.dataset.indices
