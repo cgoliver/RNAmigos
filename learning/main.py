@@ -100,7 +100,6 @@ print('Created data loader')
 Model loading
 '''
 
-
 #increase output embeddings by 1 for nuc info
 if args.nucs:
     dim_add = 1

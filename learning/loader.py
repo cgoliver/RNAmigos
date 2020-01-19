@@ -91,10 +91,10 @@ class V1(Dataset):
         if self.get_sim_mat:
             # put the rings in same order as the dgl graph
             ring = dict(sorted(ring.items()))
-            return g_dgl, ring, fp
+            return g_dgl, ring, fp, [idx]
 
         else:
-            return g_dgl, fp
+            return g_dgl, fp, [idx]
 
     def _get_edge_data(self):
         """
@@ -125,20 +125,21 @@ def collate_wrapper(node_sim_func, get_sim_mat=True):
             # The input `samples` is a list of pairs
             #  (graph, label).
             # print(len(samples))
-            graphs, rings, fp = map(list, zip(*samples))
+            graphs, rings, fp, idx  = map(list, zip(*samples))
             fp = np.array(fp)
+            idx = np.array(idx)
             batched_graph = dgl.batch(graphs)
             K = k_block_list(rings, node_sim_func)
-            return batched_graph, torch.from_numpy(K).detach().float(), torch.from_numpy(fp).detach().float()
+            return batched_graph, torch.from_numpy(K).detach().float(), torch.from_numpy(fp).detach().float(), torch.from_numpy(idx)
     else:
         def collate_block(samples):
             # The input `samples` is a list of pairs
             #  (graph, label).
             # print(len(samples))
-            graphs, _, fp = map(list, zip(*samples))
+            graphs, _, fp, idx = map(list, zip(*samples))
             fp = np.array(fp)
             batched_graph = dgl.batch(graphs)
-            return batched_graph, [1 for _ in samples], torch.from_numpy(fp)
+            return batched_graph, [1 for _ in samples], torch.from_numpy(fp), torch.from_numpy(idx)
     return collate_block
 
 class Loader():

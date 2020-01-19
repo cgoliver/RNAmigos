@@ -14,6 +14,7 @@ if __name__ == '__main__':
     sys.path.append('../')
 
 from learning.utils import dgl_to_nx
+from learning.decoy_utils import *
 from post.drawing import rna_draw
 
 def send_graph_to_device(g, device):
@@ -60,7 +61,7 @@ def print_gradients(model):
         name, p = param
         print(name, p.grad)
     pass
-def test(model, test_loader, device):
+def test(model, test_loader, device, decoys=None):
     """
     Compute accuracy and loss of model over given dataset
     :param model:
@@ -71,8 +72,9 @@ def test(model, test_loader, device):
     """
     model.eval()
     test_loss,  motif_loss_tot, recons_loss_tot = (0,) * 3
+    all_graphs = test_loader.dataset.dataset.all_graphs
     test_size = len(test_loader)
-    for batch_idx, (graph, K, fp) in enumerate(test_loader):
+    for batch_idx, (graph, K, fp, idx) in enumerate(test_loader):
         # Get data on the devices
         K = K.to(device)
         fp = fp.to(device)
@@ -83,6 +85,10 @@ def test(model, test_loader, device):
         with torch.no_grad():
             fp_pred, embeddings = model(graph)
         loss = model.compute_loss(fp, fp_pred)
+        
+        for i,f  in zip(idx, fp_pred):
+            true_lig = all_graphs[i.item()].split(":")[2]
+            rank,sim = decoy_test(f, true_lig, decoys)
         del K
         del fp
         del graph
@@ -95,7 +101,8 @@ def test(model, test_loader, device):
 
 def train_model(model, criterion, optimizer, device, train_loader, test_loader, save_path,
                 writer=None, num_epochs=25, wall_time=None,
-                reconstruction_lam=1, motif_lam=1, embed_only=-1):
+                reconstruction_lam=1, motif_lam=1, embed_only=-1,
+                decoys=None):
     """
     Performs the entire training routine.
     :param model: (torch.nn.Module): the model to train
@@ -152,7 +159,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
         num_batches = len(train_loader)
 
-        for batch_idx, (graph, K, fp) in enumerate(train_loader):
+        for batch_idx, (graph, K, fp, idx) in enumerate(train_loader):
 
             # Get data on the devices
             batch_size = len(K)
@@ -201,7 +208,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
         # writer.log_scalar("Train accuracy during training", train_accuracy, epoch)
 
         # Test phase
-        test_loss = test(model, test_loader, device)
+        test_loss = test(model, test_loader, device, decoys=decoys)
         print(">> test loss ", test_loss)
 
         writer.add_scalar("Test loss during training", test_loss, epoch)
