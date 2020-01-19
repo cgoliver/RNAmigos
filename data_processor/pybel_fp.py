@@ -1,6 +1,5 @@
 """
-Set of functions for creating and handling molecular fingerprints from SDF
-files.
+Set of functions for creating and handling molecular fingerprints.
 """
 import pickle
 import math
@@ -17,7 +16,16 @@ from pybel import *
 def smiles_dict(sdf_dir, include_ions=False, bits=False, fptype='FP2'):
     """
     Returns a dictionary where the key is a ligand ID and value is a 1024
-    molecular fingerprint object.  """
+    molecular fingerprint object. 
+    
+    Reads from a folder of SDF files.
+    
+    Arguments:
+        sdf_dir (str): path to folder with sdf files.
+       
+    Returns:
+        dict: dictionary with 3-letter IDs as keys and fingerprint vectors as values.
+    """
     smiles = {}
     sdf_list = os.listdir(sdf_dir)
     for s in tqdm(sdf_list):
@@ -44,7 +52,19 @@ def smiles_dict(sdf_dir, include_ions=False, bits=False, fptype='FP2'):
 def fp_dict(smiles_file, include_ions=False, bits=False, fptype='FP2'):
     """
     Returns a dictionary where the key is a ligand ID and value is a 1024
-    molecular fingerprint object.  """
+    molecular fingerprint object.
+    Reads from a file with a smiles string and 3-letter code per line.
+    
+    Arguments;
+        smiles_file (str): path to file with smiles
+        include_ions (bool): whether to include ions in fingerprint dictionary
+        bits (bool): convert index vector to bit array
+        fptype (str): 'fp2' 1024 fingerprint or 'maccs' 166 binary.
+
+    Returns:
+        dict: dictionary with 3-letter codes as keys and fingerprints as values.
+
+    """
 
     nbits = {'maccs': 166, 'FP2': 1024}
     fps = {}
@@ -82,5 +102,4 @@ if __name__ == "__main__":
     # smiles = smiles_dict("../data/ligs")
     # pickle.dump(smiles, open("../data/smiles_ligs_dict.p", "wb"))
     all_ligs = fp_dict("../data/pdb_rna_smiles.txt", bits=True, fptype='maccs')
-    pickle.dump(all_ligs, open("../data/all_ligs_maccs.p", "wb"))
-    sys.exit()
+    # pickle.dump(all_ligs, open("../data/all_ligs_maccs.p", "wb"))
