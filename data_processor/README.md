@@ -2,7 +2,9 @@
 
 These scripts are used to build the training sets for the GCN.
 Data is taken from a folder with annotated full RNA graphs.
-Binding sites are identified by `binding_sites.py` which uses Chimera to generate `lig_dict.p` which contains ligand residues for each PDB. 
+Binding sites are identified by `binding_sites_analyse.py` and `binding_sites_filter.py` which uses Chimera to generate `lig_dict.p` which contains ligand residues for each PDB. 
+The script `build_dataset.py` uses ligand residues `lig_dict.p` to build a graph for each ligand.
+Then, `annotator.py` reads `fp_dict.p` to label each binding site graph with a fingerprint.
 
 # `build_dataset.py`
 
