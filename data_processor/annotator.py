@@ -193,22 +193,34 @@ def annotate_one(args):
         return 1, g
 
 def get_label(g_path, mode='fp', fp_dict=None):
+    """
+        Get label for supervision for a single graph
+        Reads correct label from the name of the file.
+
+        Arguments:
+            g_path (str): filename of graph.
+            mode (str): if 'fp' returns fingerprint, if 'pocket-find' return if binds or not.
+
+    """
     if mode == 'pocket-find':
         l = [int(g_path.split("_")[2].strip('.nx') == 'BIND')]
         return l
     if mode == 'fp':
-        lig_name = lambda x: x.split(":")[2]
-        return fp_dict[lig_name(g_path)]
+        return fp_dict[g_path.split(":")[2]]
 
 def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotated/sample', 
                 graph_path='../data/chunks_nx', ablate="", parallel=True,
                 mode='fp'):
     """
     Routine for all files in a folder
-    :param dump_path: 
-    :param graph_path: 
-    :param parallel:
-    :return: 
+
+    Arguments:
+        fp_file (str): path to dictionary mapping ligand IDs to fingerprints.
+        dump_path (str): path to folder for dumping annotated graphs
+        graph_path (str): path to source networkx graphs.
+        ablate (str): graph ablation to perform (see `graph_process.py`) (default="" i.e. no ablation)
+        parallel (bool): perform on multi processor.
+        mode (str): annotation mode. If 'fp' annotates with fingerprint, 'pocket-find' annotates as binding/non-binding.
     """
     graphs = os.listdir(graph_path)
     failed = 0
