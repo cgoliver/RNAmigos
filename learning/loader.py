@@ -18,10 +18,12 @@ from data_processor.node_sim import SimFunctionNode, k_block_list
 
 class V1(Dataset):
     def __init__(self, sim_function="R_1",
-                    annotated_path='../data/annotated/pockets_nx',
+                    annotated_path='../data/annotated/pockets_nx_symmetric',
                     get_sim_mat=True,
-                    nucs=False,
-                    depth=3):
+                    nucs=True,
+                    depth=3,
+                    shuffle=False,
+                    seed=0):
         """
             Setup for data loader.
 
@@ -34,6 +36,11 @@ class V1(Dataset):
         """
         self.path = annotated_path
         self.all_graphs = sorted(os.listdir(annotated_path))
+        if seed:
+            print(f">>> shuffling with random seed {seed}")
+            np.random.seed(seed)
+        if shuffle:
+            np.random.shuffle(self.all_graphs)
         #build edge map
         self.edge_map, self.edge_freqs = self._get_edge_data()
         self.num_edge_types = len(self.edge_map)
@@ -136,14 +143,14 @@ def collate_wrapper(node_sim_func, get_sim_mat=True):
 
 class Loader():
     def __init__(self,
-                 annotated_path='data/annotated/samples/',
+                 annotated_path='../data/annotated/pockets_nx_symmetric/',
                  batch_size=128,
                  num_workers=20,
                  sim_function="R_1",
-                 debug=False,
-                 shuffled=False,
+                 shuffle=False,
+                 seed=0,
                  get_sim_mat=True,
-                 nucs=False,
+                 nucs=True,
                  depth=3):
         """
         Wrapper class to call with all arguments and that returns appropriate data_loaders
@@ -159,10 +166,10 @@ class Loader():
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.dataset = V1(annotated_path=annotated_path,
-                          debug=debug,
-                          shuffled=shuffled,
                           sim_function=sim_function,
                           get_sim_mat=get_sim_mat,
+                          shuffle=shuffle,
+                          seed=seed,
                           nucs=nucs,
                           depth=depth)
 
@@ -171,9 +178,7 @@ class Loader():
     def get_data(self):
         n = len(self.dataset)
         indices = list(range(n))
-        # np.random.shuffle(indices)
 
-        np.random.seed(0)
         split_train, split_valid = 0.8, 0.8
         train_index, valid_index = int(split_train * n), int(split_valid * n)
 
@@ -201,4 +206,8 @@ class Loader():
         return train_loader, 0, test_loader
 
 if __name__ == '__main__':
+    loader = Loader(shuffle=False,seed=99, batch_size=1, num_workers=1)
+    train,_,test = loader.get_data()
+    for t in train:
+        break
     pass
