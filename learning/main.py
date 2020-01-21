@@ -16,9 +16,8 @@ parser.add_argument("-da", "--annotated_data", default='pockets_nx_symmetric')
 parser.add_argument("-bs", "--batch_size", type=int, default=8, help="choose the batch size")
 parser.add_argument("-nw", "--workers", type=int, default=20, help="Number of workers to load data")
 parser.add_argument("-n", "--name", type=str, default='default_name', help="Name for the logs")
-parser.add_argument("-t", "--timed", help="to use timed learn", action='store_true')
 parser.add_argument("-ep", "--num_epochs", type=int, help="number of epochs to train", default=3)
-parser.add_argument("-ml", "--motif_lam", type=float, help="motif lambda", default=1.0)
+parser.add_argument("-fl", "--fp_lam", type=float, help="fingerprint lambda", default=1.0)
 parser.add_argument("-rl", "--reconstruction_lam", type=float, help="reconstruction lambda", default=1.0)
 parser.add_argument('-ad','--attributor_dims', nargs='+', type=int, help='Dimensions for attributor.', default=[16,166])
 parser.add_argument('-ed','--embedding_dims', nargs='+', type=int, help='Dimensions for embeddings.', default=[16]*3)
@@ -30,10 +29,12 @@ parser.add_argument('-po', '--pool', type=str, default='sum', help='Pooling func
 parser.add_argument("-nu", "--nucs", default=True, help="Use nucleotide IDs for learn", action='store_false')
 parser.add_argument('-rs', '--seed', type=int, default=0, help='Random seed to use (if > 0, else no seed is set).')
 parser.add_argument('-kf', '--kfold', type=int, default=0, help='Do k-fold crossval and do decoys on each fold..')
+parser.add_argument('-es', '--early_stop', type=int, default=10, help='Early stop epoch threshold (default=10)')
 
 args = parser.parse_args()
 
-print(f"OPTIONS USED: {args}")
+print("OPTIONS USED")
+print("\n".join(map(str, zip(vars(args).items()))))
 # Torch impors
 import torch
 import torch.optim as optim
@@ -110,7 +111,7 @@ else:
 if dims[-1] != attributor_dims[0] - dim_add:
     raise ValueError(f"Final embedding size must match first attributor dimension: {dims[-1]} != {attributor_dims[0]}")
 
-motif_lam = args.motif_lam
+fp_lam = args.fp_lam
 reconstruction_lam = args.reconstruction_lam
 
 data = loader.get_data(k_fold=args.kfold)
@@ -183,5 +184,6 @@ for k, (train_loader, test_loader) in enumerate(data):
                       writer=writer,
                       num_epochs=num_epochs,
                       reconstruction_lam=reconstruction_lam,
-                      motif_lam=motif_lam,
-                      embed_only=args.embed_only)
+                      fp_lam=fp_lam,
+                      embed_only=args.embed_only,
+                      early_stop_threshold=args.early_stop)

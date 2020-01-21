@@ -12,6 +12,34 @@ from dgl.nn.pytorch.glob import SumPooling,GlobalAttentionPooling
 from dgl import mean_nodes
 from dgl.nn.pytorch.conv import RelGraphConv
 
+class JaccardDistanceLoss(torch.nn.Module):
+
+    def __init__(self, smooth=100, dim=1, size_average=True, reduce=True):
+        """
+        Jaccard = (|X & Y|)/ (|X|+ |Y| - |X & Y|)
+                = sum(|A*B|)/(sum(|A|)+sum(|B|)-sum(|A*B|))
+        The jaccard distance loss is usefull for unbalanced datasets. This has been
+        shifted so it converges on 0 and is smoothed to avoid exploding or disapearing
+        gradient.
+        Ref: https://en.wikipedia.org/wiki/Jaccard_index
+        @url: https://gist.github.com/wassname/d1551adac83931133f6a84c5095ea101
+        @author: wassname
+        """
+        super(JaccardDistanceLoss, self).__init__()
+        self.smooth = smooth
+        self.dim = dim
+        self.size_average = size_average
+        self.reduce = reduce
+
+    def forward(self, y_true, y_pred):
+        intersection = (y_true * y_pred).abs().sum(self.dim)
+        sum_ = (y_true.abs() + y_pred.abs()).sum(self.dim)
+        jac = (intersection + self.smooth) / (sum_ - intersection + self.smooth)
+        losses = (1 - jac) * self.smooth
+        if self.reduce:
+            return losses.mean() if self.size_average else losses.sum()
+        else:
+            return losses
 
 class Attributor(nn.Module):
     """
@@ -206,6 +234,7 @@ class Model(nn.Module):
         # pw = torch.tensor([self.pos_weight], dtype=torch.float, requires_grad=False).to(self.device)
         # loss = torch.nn.BCEWithLogitsLoss(pos_weight=pw)(pred_fp, target_fp)
         loss = torch.nn.BCELoss()(pred_fp, target_fp)
+        # loss = JaccardDistanceLoss()(pred_fp, target_fp)
 
         return loss
 

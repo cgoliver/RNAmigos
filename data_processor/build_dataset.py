@@ -122,11 +122,12 @@ def get_pocket_graph(pdb_structure_path, ligand_id, graph,
 
     assert labels.issubset(valid_edges)
 
-    print(pocket)
-    rna_draw(G, title="BINDING")
+    # rna_draw(G, title="BINDING")
+    if len(G.nodes()) < 4:
+        return None
 
-    # if dump_path and (len(G.nodes()) > 4):
-        # nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_BIND.nx"))
+    if dump_path:
+        nx.write_gpickle(G, os.path.join(dump_path, f"{pdbid}_{ligand_id}_BIND.nx"))
 
     #sample and build non-binding graph.
     if non_binding:
@@ -164,6 +165,7 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
     lig_dict = pickle.load(open(lig_dict_path, 'rb'))
 
     print(f">>> building graphs for {len(lig_dict)} PDBs")
+    print(f">>> dumping in {dump_path}")
     print(f">>> and {sum(map(len, lig_dict.values()))} binding sites.")
 
     failed = 0
@@ -177,12 +179,15 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
     print(f">>> skipping {done_pdbs}")
 
     failed = []
+    empties = 0
+    num_found = 0
     missing_graphs = []
     for pdbid, ligs in tqdm(lig_dict.items()):
         pdbid =  pdbid.split(".")[0]
-        pdb_path = f"../data/all_rna_prot_lig_2019/{pdbid}.cif"
-        # if pdbid in done_pdbs:
-            # continue
+        # pdb_path = f"../data/all_rna_prot_lig_2019/{pdbid}.cif"
+        pdb_path = f"../../carlos_docking/data/all_rna_with_lig_2019/{pdbid}.cif"
+        if pdbid in done_pdbs:
+            continue
         # try:
         print(">>> ", pdbid)
         try:
@@ -197,19 +202,26 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
         for lig in ligs:
             #dump binding site graphs
             try:
-                get_pocket_graph(pdb_path, lig,
+                g = get_pocket_graph(pdb_path, lig,
                                 pdb_graph, dump_path=dump_path,
                                 non_binding=non_binding)
+                if g is None:
+                    empties += 1
+                else:
+                    num_found += 1
+                    print(f">>> pockets so far {num_found}")
+                    
             except FileNotFoundError:
                 print(f"{pdbid} not found")
                 failed.append(pdbid)
     print(f">>> missing graphs for {missing_graphs}")
-    print(failed)
+    print(f">>> failed on {len(failed)} graphs")
+    print(f">>> got {empties} empty graphs")
 
 
 if __name__ == "__main__":
     #take all ligands with 8 angstrom sphere and 0.6 RNA concentration, build a graph for each.
     # get_binding_site_graphs_all('../data/lig_dict_c_8A_06rna.p','../data/pockets_nx_pfind',
                                 # non_binding=True)
-    get_binding_site_graphs_all('../data/lig_dict_c_10A_08rna.p', '../data/pockets_nx_large', non_binding=False)
+    get_binding_site_graphs_all('../data/lig_dict_ismb_rna06_rad10.p', '../data/pockets_nx_ismb', non_binding=False)
     pass

@@ -61,7 +61,7 @@ def print_gradients(model):
         name, p = param
         print(name, p.grad)
     pass
-def test(model, test_loader, device, decoys=None):
+def test(model, test_loader, device, decoys=None, fp_draw=False):
     """
     Compute accuracy and loss of model over given dataset
     :param model:
@@ -85,27 +85,48 @@ def test(model, test_loader, device, decoys=None):
         with torch.no_grad():
             fp_pred, embeddings = model(graph)
         loss = model.compute_loss(fp, fp_pred)
-        
+        kws = {'cbar': False,
+               'square':False,
+               'vmin': 0,
+               'vmax': 1}
+
+        jaccards = []
         enrichments = []
         for i,f  in zip(idx, fp_pred):
             true_lig = all_graphs[i.item()].split(":")[2]
             rank,sim = decoy_test(f, true_lig, decoys)
             enrichments.append(rank)
-        decoy_ranks = np.mean(enrichments)
+            jaccards.append(sim)
+        mean_ranks = np.mean(enrichments)
+        mean_jaccard = np.mean(jaccards)
         del K
-        del fp
         del graph
 
         test_loss += loss.item()
 
         del loss
+        if fp_draw:
+            fig, (ax1, ax2, ax3) = plt.subplots(1,3)
+            sns.heatmap(fp, ax=ax1, **kws)
+            bina = fp_pred > 0.5
+            fp_true = fp.clone().detach()
+            fp_true = fp_true.int()
+            bina = bina.int()
+            sns.heatmap(bina, ax=ax2, **kws)
+            sns.heatmap(fp_true != bina, ax=ax3, **kws)
+            ax1.set_title("True")
+            ax2.set_title("Pred")
+            ax3.set_title("Diff")
+            plt.show()
+        del fp
+        
 
-    return test_loss / test_size, decoy_ranks
+    return test_loss / test_size, mean_ranks, mean_jaccard
 
 def train_model(model, criterion, optimizer, device, train_loader, test_loader, save_path,
                 writer=None, num_epochs=25, wall_time=None,
-                reconstruction_lam=1, motif_lam=1, embed_only=-1,
-                decoys=None):
+                reconstruction_lam=1, fp_lam=1, embed_only=-1,
+                decoys=None, early_stop_threshold=10, fp_draw=False):
     """
     Performs the entire training routine.
     :param model: (torch.nn.Module): the model to train
@@ -119,22 +140,22 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     :param num_epochs: int number of epochs
     :param wall_time: The number of hours you want the model to run
     :param reconstruction_lam: how much to enforce pariwise similarity conservation
-    :param motif_lam: how much to enforce motif assignment
+    :param fp_lam: how much to enforce motif assignment
     :param embed_only: number of epochs before starting attributor training.
     :return:
     """
 
     edge_map = train_loader.dataset.dataset.edge_map
+    all_graphs = train_loader.dataset.dataset.all_graphs
 
     decoys = get_decoys(mode='pdb', annots_dir=train_loader.dataset.dataset.path)
 
     epochs_from_best = 0
-    early_stop_threshold = 10
 
     start_time = time.time()
     best_loss = sys.maxsize
 
-    motif_lam_orig = motif_lam
+    fp_lam_orig = fp_lam
     reconstruction_lam_orig = reconstruction_lam
 
     #if we delay attributor, start with attributor OFF
@@ -142,7 +163,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     if embed_only > -1:
         print("Switching attriutor OFF. Embeddings still ON.")
         set_gradients(model, attributor=False)
-        motif_lam = 0
+        fp_lam = 0
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))
@@ -156,7 +177,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
             print("Switching attributor ON, embeddings OFF.")
             set_gradients(model, embedding=False, attributor=True)
             reconstruction_lam = 0
-            motif_lam = motif_lam_orig
+            fp_lam = fp_lam_orig
 
         running_loss = 0.0
 
@@ -164,6 +185,8 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
         num_batches = len(train_loader)
 
+        train_enrichments = []
+        train_jaccards = []
         for batch_idx, (graph, K, fp, idx) in enumerate(train_loader):
 
             # Get data on the devices
@@ -173,7 +196,31 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
             fp_pred, embeddings = model(graph)
 
+            if fp_draw:
+                fig, (ax1, ax2, ax3) = plt.subplots(1,3)
+                kws = {'cbar': False,
+                       'square':False,
+                       'vmin': 0,
+                       'vmax': 1}
+
+                sns.heatmap(fp, ax=ax1, **kws)
+                bina = fp_pred > 0.5
+                fp_true = fp.clone().detach()
+                fp_true = fp_true.int()
+                bina = bina.int()
+                sns.heatmap(bina, ax=ax2, **kws)
+                sns.heatmap(fp_true != bina, ax=ax3, **kws)
+                ax1.set_title("True")
+                ax2.set_title("Pred")
+                ax3.set_title("Diff")
+                plt.show()
+
             loss = model.compute_loss(fp, fp_pred)
+            for i,f  in zip(idx, fp_pred):
+                true_lig = all_graphs[i.item()].split(":")[2]
+                rank,sim = decoy_test(f, true_lig, decoys)
+                train_enrichments.append(rank)
+                train_jaccards.append(sim)
 
             # l = model.rec_loss(embeddings, K, similarity=False)
             # print(l)
@@ -188,7 +235,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
             batch_loss = loss.item()
             running_loss += batch_loss
 
-            # running_corrects += labels.eq(target.view_as(out)).sum().item()
             if batch_idx % 20 == 0:
                 time_elapsed = time.time() - start_time
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}  Time: {:.2f}'.format(
@@ -208,14 +254,17 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
         # Log training metrics
         train_loss = running_loss / num_batches
         writer.add_scalar("Training epoch loss", train_loss, epoch)
+        print(">> train enrichments", np.mean(train_enrichments))
+        print(">> train jaccards", np.mean(train_jaccards))
 
         # train_accuracy = running_corrects / num_batches
         # writer.log_scalar("Train accuracy during training", train_accuracy, epoch)
 
         # Test phase
-        test_loss, enrichments  = test(model, test_loader, device, decoys=decoys)
+        test_loss, enrichments, jaccards  = test(model, test_loader, device, decoys=decoys)
         print(">> test loss ", test_loss)
         print(">> test enrichments", enrichments)
+        print(">> test jaccards ", jaccards)
 
         writer.add_scalar("Test loss during training", test_loss, epoch)
 

@@ -39,7 +39,8 @@ def get_valids(lig_dict, max_dist, min_conc, min_size=4):
     unique_ligs = set()
     for pdb, ligands in lig_dict.items():
         for lig_id,lig_cuts in ligands:
-            lig_name = lig_id.split(":")[1]
+            # lig_name = lig_id.split(":")[1]
+            lig_name = lig_id.split(":")[2]
             #go over each distance cutoff
             for c in lig_cuts:
                 tot = c['rna'] + c['protein']
@@ -73,9 +74,9 @@ def ligs_to_txt(d, dest="../data/ligs.txt"):
             o.write(" ".join([pdb, *ligs]) + "\n")
     pass
 if __name__ == "__main__":
-    d = pickle.load(open('../data/lig_dict.p', 'rb'))
+    d = pickle.load(open('../data/lig_dict_ismb.p', 'rb'))
     c = 10
     conc = .6
-    ligs = get_valids(d, c, conc, min_size=5)
-    # pickle.dump(ligs, open("../data/lig_dict_r10_d06.p", "wb"))
+    ligs = get_valids(d, c, conc, min_size=4)
+    pickle.dump(ligs, open("../data/lig_dict_ismb_rna06_rad10.p", "wb"))
     # ligs_to_txt(ligs)

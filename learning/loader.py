@@ -79,8 +79,8 @@ class V1(Dataset):
             one_hot_nucs  = {node: torch.tensor(self.nuc_map[label], dtype=torch.float32) for node, label in
                        (nx.get_node_attributes(graph, 'nt')).items()}
         else:
-            one_hot_nucs  = {node: torch.tensor(0, dtype=torch.float32) for node, label in
-                       (nx.get_node_attributes(graph, 'nt')).items()}
+            one_hot_nucs  = {node: torch.tensor(0, dtype=torch.float32) for node in
+                       graph.nodes()}
 
         nx.set_node_attributes(graph, name='one_hot', values=one_hot_nucs)
 
@@ -212,9 +212,9 @@ class Loader():
 
             collate_block = collate_wrapper(self.dataset.node_sim_func)
 
-            train_loader = DataLoader(dataset=train_set, shuffle=True, batch_size=self.batch_size,
+            train_loader = DataLoader(dataset=train_set,  batch_size=self.batch_size,
                                       num_workers=self.num_workers, collate_fn=collate_block)
-            test_loader = DataLoader(dataset=test_set, shuffle=True, batch_size=self.batch_size,
+            test_loader = DataLoader(dataset=test_set, batch_size=self.batch_size,
                                  num_workers=self.num_workers, collate_fn=collate_block)
 
             # return train_loader, valid_loader, test_loader
