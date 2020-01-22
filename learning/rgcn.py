@@ -48,10 +48,11 @@ class Attributor(nn.Module):
 
         Linear/ReLu layers with Sigmoid in output since fingerprints between 0 and 1.
     """
-    def __init__(self, dims):
+    def __init__(self, dims, clustered=False):
         super(Attributor, self).__init__()
         # self.num_nodes = num_nodes
         self.dims = dims
+        self.clustered = clustered
 
         # create layers
         self.build_model()
@@ -69,7 +70,11 @@ class Attributor(nn.Module):
             layers.append(nn.Dropout(0.5))
         # hidden to output
         layers.append(nn.Linear(last_hidden, last))
-        layers.append(nn.Sigmoid())
+        #predict one class
+        if self.clustered:
+            layers.append(nn.Softmax(dim=1))
+        else:
+            layers.append(nn.Sigmoid())
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -137,7 +142,7 @@ class Embedder(nn.Module):
 # ~~~~~~~~~~~~~~~~~~~~~~~
 class Model(nn.Module):
     def __init__(self, dims, device, attributor_dims, num_rels, pool='att', num_bases=-1,
-                             pos_weight=0, nucs=True):
+                             pos_weight=0, nucs=True, clustered=False, num_clusts=8):
         """
 
         :param dims: the embeddings dimensions
@@ -158,6 +163,8 @@ class Model(nn.Module):
         self.pos_weight = pos_weight
         self.device = device
         self.nucs = nucs
+        self.clustered = clustered
+        self.num_clusts = num_clusts
 
         if pool == 'att':
             pooling_gate_nn = nn.Linear(attributor_dims[0], 1)
@@ -167,7 +174,7 @@ class Model(nn.Module):
 
         self.embedder = Embedder(dims=dims, num_rels=num_rels, num_bases=num_bases)
 
-        self.attributor = Attributor(attributor_dims)
+        self.attributor = Attributor(attributor_dims, clustered=clustered)
 
     def forward(self, g):
         embeddings = self.embedder(g)

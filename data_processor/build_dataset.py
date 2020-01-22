@@ -176,7 +176,7 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
         pass
 
     done_pdbs = {f.split('_')[0] for f in os.listdir(dump_path)}
-    print(f">>> skipping {done_pdbs}")
+    print(f">>> skipping {len(done_pdbs)}")
 
     failed = []
     empties = 0
@@ -196,6 +196,11 @@ def get_binding_site_graphs_all(lig_dict_path, dump_path, non_binding=False):
             print(f"{pdbid} graph not found.")
             print(f"{pdbid} had {len(ligs)} binding sites")
             missing_graphs.append(pdbid)
+            continue
+        try:
+            pdb_graph.nodes()
+        except AttributeError:
+            print("empty graph")
             continue
         # print(f"new guy: {pdbid}")
         # continue

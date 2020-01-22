@@ -30,6 +30,8 @@ parser.add_argument("-nu", "--nucs", default=True, help="Use nucleotide IDs for 
 parser.add_argument('-rs', '--seed', type=int, default=0, help='Random seed to use (if > 0, else no seed is set).')
 parser.add_argument('-kf', '--kfold', type=int, default=0, help='Do k-fold crossval and do decoys on each fold..')
 parser.add_argument('-es', '--early_stop', type=int, default=10, help='Early stop epoch threshold (default=10)')
+parser.add_argument('-cl', '--clustered',  action='store_true', default=False, help='Predict ligand cluster (default=False)')
+parser.add_argument('-cn', '--num_clusts',  type=int, default=8, help='Number of clusters (default=8)')
 
 args = parser.parse_args()
 
@@ -120,7 +122,8 @@ for k, (train_loader, test_loader) in enumerate(data):
                   num_rels=loader.num_edge_types,
                   num_bases=-1, pool=args.pool,
                   pos_weight=args.pos_weight,
-                  nucs=args.nucs)
+                  nucs=args.nucs, clustered=args.clustered,
+                  num_clusts=args.num_clusts)
 
     #if pre-trained initialize matching layers
     if args.warm_start:

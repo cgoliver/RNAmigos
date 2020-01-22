@@ -86,6 +86,9 @@ def graph_ablations(G, mode):
 
     H = nx.Graph()
 
+    H.add_nodes_from(G.nodes(data=True))
+    # nx.set_node_attributes(H, 'pdb_pos', {n:d['pdb_pos'] for n,d in G.nodes(data=True)})
+    # nx.set_node_attributes(H, 'nt', {n:d['nt'] for n,d in G.nodes(data=True)})
     if mode == 'label-shuffle':
         #assign a random label from the same graph to each edge.
         labels = [d['label'] for _,_,d in G.edges(data=True)]

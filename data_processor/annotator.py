@@ -245,7 +245,7 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
             res = annotate_one((graph, graph_path, dump_path, get_label(graph, mode, fp_dict), ablate))
         except KeyError:
             failed += 1
-            print("missing fingerprint: {lig_name(graph)}")
+            print(f"missing fingerprint: {graph_path}")
             continue
         if res[0]:
             failed += 1
@@ -255,5 +255,7 @@ def annotate_all(fp_file="../data/all_ligs_maccs.p", dump_path='../data/annotate
 
 if __name__ == '__main__':
     # annotate_all(parallel=False, graph_path="../data/pockets_nx_2", dump_path="../data/annotated/pockets_nx_2", ablate="")
-    annotate_all(parallel=False, graph_path="../data/pockets_nx_symmetric", dump_path="../data/annotated/pockets_nx_symmetric", 
-        ablate="", mode='fp')
+    annotate_all(parallel=False, graph_path="../data/pockets_nx_symmetric", dump_path="../data/annotated/pockets_nx_symmetric_wc-bb", 
+        ablate="wc-bb", mode='fp')
+    # annotate_all(parallel=False, graph_path="../data/pockets_nx_symmetric", dump_path="../data/annotated/pockets_nx_symmetric_clust", 
+        # ablate="", mode='fp', fp_file='../data/fp_dict_8clusters.p')

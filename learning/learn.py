@@ -61,7 +61,7 @@ def print_gradients(model):
         name, p = param
         print(name, p.grad)
     pass
-def test(model, test_loader, device, decoys=None, fp_draw=False):
+def test(model, test_loader, device, fp_draw=False):
     """
     Compute accuracy and loss of model over given dataset
     :param model:
@@ -77,6 +77,12 @@ def test(model, test_loader, device, decoys=None, fp_draw=False):
     for batch_idx, (graph, K, fp, idx) in enumerate(test_loader):
         # Get data on the devices
         K = K.to(device)
+        if model.clustered:
+            clust_hots = torch.zeros((len(fp), model.num_clusts))
+            for i,f in enumerate(fp):
+                clust_hots[i][int(f)] = 1.
+            fp = clust_hots
+
         fp = fp.to(device)
         K = torch.ones(K.shape).to(device) - K
         graph = send_graph_to_device(graph, device)
@@ -90,15 +96,6 @@ def test(model, test_loader, device, decoys=None, fp_draw=False):
                'vmin': 0,
                'vmax': 1}
 
-        jaccards = []
-        enrichments = []
-        for i,f  in zip(idx, fp_pred):
-            true_lig = all_graphs[i.item()].split(":")[2]
-            rank,sim = decoy_test(f, true_lig, decoys)
-            enrichments.append(rank)
-            jaccards.append(sim)
-        mean_ranks = np.mean(enrichments)
-        mean_jaccard = np.mean(jaccards)
         del K
         del graph
 
@@ -121,12 +118,12 @@ def test(model, test_loader, device, decoys=None, fp_draw=False):
         del fp
         
 
-    return test_loss / test_size, mean_ranks, mean_jaccard
+    return test_loss / test_size
 
 def train_model(model, criterion, optimizer, device, train_loader, test_loader, save_path,
                 writer=None, num_epochs=25, wall_time=None,
                 reconstruction_lam=1, fp_lam=1, embed_only=-1,
-                decoys=None, early_stop_threshold=10, fp_draw=False):
+                 early_stop_threshold=10, fp_draw=False):
     """
     Performs the entire training routine.
     :param model: (torch.nn.Module): the model to train
@@ -148,8 +145,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     edge_map = train_loader.dataset.dataset.edge_map
     all_graphs = train_loader.dataset.dataset.all_graphs
 
-    decoys = get_decoys(mode='pdb', annots_dir=train_loader.dataset.dataset.path)
-
     epochs_from_best = 0
 
     start_time = time.time()
@@ -158,6 +153,9 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     fp_lam_orig = fp_lam
     reconstruction_lam_orig = reconstruction_lam
 
+    dec_mode = 'pdb-whole'
+
+    batch_size = train_loader.batch_size
     #if we delay attributor, start with attributor OFF
     #if <= -1, both always ON.
     if embed_only > -1:
@@ -185,12 +183,16 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
         num_batches = len(train_loader)
 
-        train_enrichments = []
-        train_jaccards = []
         for batch_idx, (graph, K, fp, idx) in enumerate(train_loader):
 
             # Get data on the devices
-            batch_size = len(K)
+            #convert ints to one hots
+            if model.clustered:
+                clust_hots = torch.zeros((len(fp), model.num_clusts))
+                for i,f in enumerate(fp):
+                    clust_hots[i][int(f)] = 1.
+                fp = clust_hots
+
             fp = fp.to(device)
             graph = send_graph_to_device(graph, device)
 
@@ -216,11 +218,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
                 plt.show()
 
             loss = model.compute_loss(fp, fp_pred)
-            for i,f  in zip(idx, fp_pred):
-                true_lig = all_graphs[i.item()].split(":")[2]
-                rank,sim = decoy_test(f, true_lig, decoys)
-                train_enrichments.append(rank)
-                train_jaccards.append(sim)
 
             # l = model.rec_loss(embeddings, K, similarity=False)
             # print(l)
@@ -254,17 +251,13 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
         # Log training metrics
         train_loss = running_loss / num_batches
         writer.add_scalar("Training epoch loss", train_loss, epoch)
-        print(">> train enrichments", np.mean(train_enrichments))
-        print(">> train jaccards", np.mean(train_jaccards))
 
         # train_accuracy = running_corrects / num_batches
         # writer.log_scalar("Train accuracy during training", train_accuracy, epoch)
 
         # Test phase
-        test_loss, enrichments, jaccards  = test(model, test_loader, device, decoys=decoys)
+        test_loss = test(model, test_loader, device)
         print(">> test loss ", test_loss)
-        print(">> test enrichments", enrichments)
-        print(">> test jaccards ", jaccards)
 
         writer.add_scalar("Test loss during training", test_loss, epoch)
 

@@ -72,7 +72,10 @@ def fp_dict(smiles_file, include_ions=False, bits=False, fptype='FP2'):
     with open(smiles_file, "r") as sms:
         for s in sms:
             smile, name = s.split()
-            mol = readstring('smi', smile)
+            try:
+                mol = readstring('smi', smile)
+            except:
+                continue
             fp = mol.calcfp(fptype=fptype)
             if bits:
                 fp = index_to_vec(fp.bits, nbits=nbits[fptype])
@@ -101,5 +104,6 @@ if __name__ == "__main__":
     # all_ligs = fp_dict("../data/ligs", bits=True, fptype='maccs')
     # smiles = smiles_dict("../data/ligs")
     # pickle.dump(smiles, open("../data/smiles_ligs_dict.p", "wb"))
-    all_ligs = fp_dict("../data/pdb_rna_smiles.txt", bits=True, fptype='maccs')
-    # pickle.dump(all_ligs, open("../data/all_ligs_maccs.p", "wb"))
+    # all_ligs = fp_dict("../data/pdb_rna_smiles.txt", bits=True, fptype='maccs')
+    all_ligs = fp_dict("../data/all_ligs_pdb.txt", bits=True, fptype='maccs')
+    pickle.dump(all_ligs, open("../data/all_ligs_pdb_maccs.p", "wb"))

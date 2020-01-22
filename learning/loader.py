@@ -23,7 +23,9 @@ class V1(Dataset):
                     nucs=True,
                     depth=3,
                     shuffle=False,
-                    seed=0):
+                    seed=0,
+                    clustered=False,
+                    num_clusters=8):
         """
             Setup for data loader.
 
@@ -45,6 +47,8 @@ class V1(Dataset):
         self.edge_map, self.edge_freqs = self._get_edge_data()
         self.num_edge_types = len(self.edge_map)
         self.nucs = nucs
+        self.clustered = clustered
+        self.num_clusters = num_clusters
         if nucs:
             print(">>> storing nucleotide IDs")
             self.nuc_map = {n:i for i,n in enumerate(['A', 'C', 'G', 'N', 'U'])}
@@ -87,6 +91,11 @@ class V1(Dataset):
         g_dgl = dgl.DGLGraph()
         g_dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'], node_attrs=['one_hot'])
         g_dgl.title = self.all_graphs[idx]
+
+        if self.clustered:
+            one_hot_label = torch.zeros((1,self.num_clusters))
+            one_hot_label[fp] = 1.
+            fp = one_hot_label
 
         if self.get_sim_mat:
             # put the rings in same order as the dgl graph
