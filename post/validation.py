@@ -102,20 +102,6 @@ def decoy_test(model, decoys, edge_map, embed_dim,
         nx_graph, dgl_graph = nx_to_dgl(g, edge_map, nucs=nucs)
         fp_pred, _ = model(dgl_graph)
 
-        if False:
-                n_nodes = len(dgl_graph.nodes)
-                att= get_attention_map(dgl_graph, src_nodes=dgl_graph.nodes(), dst_nodes=dgl_graph.nodes(), h=1)
-                att_g0 = att[0] # get attn weights only for g0
-                
-                # Select atoms with highest attention weights and plot them 
-                tops = np.unique(np.where(att_g0>0.51)) # get top atoms in attention
-                print(f"tops {tops}")
-
-                g0 = dgl_to_nx(dgl_graph, edge_map)
-                nodelist = list(g0.nodes())
-                highlight_edges = list(g0.subgraph([nodelist[t] for t in tops]).edges())
-                rna_draw(g0, highlight_edges=highlight_edges)
-
         fp_pred = fp_pred.detach().numpy() > 0.5
         # print(fp_pred)
         # fp_pred = np.random.choice([0, 1], size=(166,), p=[1./2, 1./2])

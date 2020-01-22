@@ -78,10 +78,7 @@ def test(model, test_loader, device, fp_draw=False):
         # Get data on the devices
         K = K.to(device)
         if model.clustered:
-            clust_hots = torch.zeros((len(fp), model.num_clusts))
-            for i,f in enumerate(fp):
-                clust_hots[i][int(f)] = 1.
-            fp = clust_hots
+            fp = fp.long()
 
         fp = fp.to(device)
         K = torch.ones(K.shape).to(device) - K
@@ -187,14 +184,11 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
             # Get data on the devices
             #convert ints to one hots
-            if model.clustered:
-                clust_hots = torch.zeros((len(fp), model.num_clusts))
-                for i,f in enumerate(fp):
-                    clust_hots[i][int(f)] = 1.
-                fp = clust_hots
 
-            fp = fp.to(device)
             graph = send_graph_to_device(graph, device)
+            if model.clustered:
+                fp = fp.long()
+            fp = fp.to(device)
 
             fp_pred, embeddings = model(graph)
 

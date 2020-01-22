@@ -71,9 +71,7 @@ class Attributor(nn.Module):
         # hidden to output
         layers.append(nn.Linear(last_hidden, last))
         #predict one class
-        if self.clustered:
-            layers.append(nn.Softmax(dim=1))
-        else:
+        if not self.clustered:
             layers.append(nn.Sigmoid())
         self.net = nn.Sequential(*layers)
 
@@ -240,7 +238,10 @@ class Model(nn.Module):
         """
         # pw = torch.tensor([self.pos_weight], dtype=torch.float, requires_grad=False).to(self.device)
         # loss = torch.nn.BCEWithLogitsLoss(pos_weight=pw)(pred_fp, target_fp)
-        loss = torch.nn.BCELoss()(pred_fp, target_fp)
+        if self.clustered:
+            loss = torch.nn.CrossEntropyLoss()(pred_fp, target_fp)
+        else:
+            loss = torch.nn.BCELoss()(pred_fp, target_fp)
         # loss = JaccardDistanceLoss()(pred_fp, target_fp)
 
         return loss
