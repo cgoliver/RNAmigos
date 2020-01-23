@@ -36,6 +36,7 @@ class V1(Dataset):
                 nucs (bool): whether to include nucleotide ID in node (default=False).
                 depth (int): number of hops to use in the node kernel.
         """
+        print(f">>> fetching data from {annotated_path}")
         self.path = annotated_path
         self.all_graphs = sorted(os.listdir(annotated_path))
         if seed:
@@ -139,7 +140,7 @@ def collate_wrapper(node_sim_func, get_sim_mat=True):
             idx = np.array(idx)
             batched_graph = dgl.batch(graphs)
             K = k_block_list(rings, node_sim_func)
-            return batched_graph, torch.from_numpy(K).detach().float(), torch.from_numpy(fp).detach().float(), torch.from_numpy(idx)
+            return batched_graph, torch.from_numpy(K).float(), torch.from_numpy(fp).float(), torch.from_numpy(idx)
     else:
         def collate_block(samples):
             # The input `samples` is a list of pairs
@@ -188,6 +189,7 @@ class Loader():
     def get_data(self, k_fold=0):
         n = len(self.dataset)
         indices = list(range(n))
+        collate_block = collate_wrapper(self.dataset.node_sim_func)
 
         if k_fold > 1:
             from sklearn.model_selection import KFold
@@ -196,11 +198,9 @@ class Loader():
                 train_set = Subset(self.dataset, train_indices)
                 test_set = Subset(self.dataset, test_indices)
 
-                collate_block = collate_wrapper(self.dataset.node_sim_func)
-
-                train_loader = DataLoader(dataset=train_set, batch_size=self.batch_size,
+                train_loader = DataLoader(dataset=train_set, shuffle=True, batch_size=self.batch_size,
                                           num_workers=self.num_workers, collate_fn=collate_block)
-                test_loader = DataLoader(dataset=test_set, batch_size=self.batch_size,
+                test_loader = DataLoader(dataset=test_set, shuffle=True, batch_size=self.batch_size,
                                          num_workers=self.num_workers, collate_fn=collate_block)
 
                 yield train_loader, test_loader
@@ -219,11 +219,9 @@ class Loader():
             print("training graphs ", len(train_set))
             print("testing graphs ", len(test_set))
 
-            collate_block = collate_wrapper(self.dataset.node_sim_func)
-
-            train_loader = DataLoader(dataset=train_set,  batch_size=self.batch_size,
+            train_loader = DataLoader(dataset=train_set, shuffle=True, batch_size=self.batch_size,
                                       num_workers=self.num_workers, collate_fn=collate_block)
-            test_loader = DataLoader(dataset=test_set, batch_size=self.batch_size,
+            test_loader = DataLoader(dataset=test_set, shuffle=True, batch_size=self.batch_size,
                                  num_workers=self.num_workers, collate_fn=collate_block)
 
             # return train_loader, valid_loader, test_loader

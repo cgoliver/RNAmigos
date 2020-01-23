@@ -130,10 +130,10 @@ for k, (train_loader, test_loader) in enumerate(data):
         print("warm starting")
         m = torch.load(args.warm_start, map_location='cpu')['model_state_dict']
         #remove keys not related to embeddings
-        for k in list(m.keys()):
-            if 'embedder' not in k:
-                print("killing ", k)
-                del m[k]
+        for key in list(m.keys()):
+            if 'embedder' not in key:
+                print("killing ", key)
+                del m[key]
         missing = model.load_state_dict(m, strict=False)
         print(missing)
 
@@ -153,6 +153,7 @@ for k, (train_loader, test_loader) in enumerate(data):
     '''
 
     name = f"{args.name}_{k}"
+    print(name)
     result_folder, save_path = mkdirs(name)
     print(save_path)
     writer = SummaryWriter(result_folder)

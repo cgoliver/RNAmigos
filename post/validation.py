@@ -32,6 +32,10 @@ from learning.utils import dgl_to_nx
 from tools.learning_utils import load_model
 from post.drawing import rna_draw
 
+def mse(x,y):
+    d = np.sum((x-y)**2) / len(x)
+    return d
+
 def get_decoys(mode='pdb', annots_dir='../data/annotated/pockets_nx_2'):
     """
     Build decoys set for validation.
@@ -103,15 +107,14 @@ def decoy_test(model, decoys, edge_map, embed_dim,
         fp_pred, _ = model(dgl_graph)
 
         fp_pred = fp_pred.detach().numpy() > 0.5
-        # print(fp_pred)
-        # fp_pred = np.random.choice([0, 1], size=(166,), p=[1./2, 1./2])
+        # fp_pred = fp_pred.detach().numpy()
         if shuffle:
-            orig = true_id
-            true_id = np.random.choice(ligs, replace=False)
+            # true_id = np.random.choice(ligs, replace=False)
+            fp_pred = np.random.rand(166)
         active = decoys[true_id][0]
         decs = decoys[true_id][1]
         rank = distance_rank(active, fp_pred, decs)
-        sim = jaccard(active, fp_pred)
+        sim = mse(active, fp_pred)
         ranks.append(rank)
         sims.append(sim)
     return ranks, sims
@@ -144,18 +147,28 @@ def make_violins(df, x='method', y='rank', save=None, show=True):
 
 def ablation_results():
     # modes = ['', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle']
-    modes = ['raw', 'bb', 'wc-bb', 'pair-shuffle']
+    # modes = ['raw', 'bb', 'wc-bb', 'pair-shuffle']
+    modes = ['raw', 'bb', 'wc-bb', 'swap', 'random']
     decoys = get_decoys(mode='pdb')
     ranks, methods, jaccards  = [], [], []
     graph_dir = '../data/annotated/pockets_nx_symmetric'
     # graph_dir = '../data/annotated/pockets_nx_2'
     run = 'ismb'
+    # run = 'teste'
+    # run = 'random'
     num_folds = 10
     for m in modes:
 
         if m in ['raw', 'pair-shuffle']:
             graph_dir = "../data/annotated/pockets_nx_symmetric"
             run = 'ismb-raw'
+            # run = 'teste'
+        elif m == 'swap':
+            graph_dir = '../data/annotated/pockets_nx_symmetric_scramble'
+            run = 'ismb-' + m
+        elif m == 'random':
+            graph_dir = '../data/annotated/pockets_nx_symmetric_random'
+            run = 'random'
         else:
             graph_dir = "../data/annotated/pockets_nx_symmetric_" + m
             run = 'ismb-' + m
@@ -163,11 +176,13 @@ def ablation_results():
 
         for fold in range(num_folds):
             model, meta = load_model(run +"_" + str(fold))
+            # model, meta = load_model(run)
             edge_map = meta['edge_map']
             embed_dim = meta['embedding_dims'][-1]
             num_edge_types = len(edge_map)
 
             graph_ids = pickle.load(open(f'../results/trained_models/{run}_{fold}/splits_{fold}.p', 'rb'))
+            # graph_ids = pickle.load(open(f'../results/trained_models/{run}/splits.p', 'rb'))
 
             shuffle = False
             if m == 'pair-shuffle':
@@ -182,20 +197,20 @@ def ablation_results():
             jaccards.extend(sims_this)
             methods.extend([m]*len(ranks_this))
 
-            #decoy distance distribution
-            # dists = []
-            # for _,(active, decs) in decoys.items():
-                # for d in decs:
-                    # dists.append(jaccard(active, d))
+            # decoy distance distribution
+            dists = []
+            for _,(active, decs) in decoys.items():
+                for d in decs:
+                    dists.append(jaccard(active, d))
             # plt.scatter(ranks_this, sims_this)
             # plt.xlabel("ranks")
             # plt.ylabel("distance")
             # plt.show()
-            # sns.distplot(dists, label='decoy distance')
-            # sns.distplot(sims_this, label='pred distance')
-            # plt.xlabel("distance")
-            # plt.legend()
-            # plt.show()
+            sns.distplot(dists, label='decoy distance')
+            sns.distplot(sims_this, label='pred distance')
+            plt.xlabel("distance")
+            plt.legend()
+            plt.show()
 
             # # rank_cut = 0.9
             # cool = [graph_ids['test'][i] for i,(d,r) in enumerate(zip(sims_this, ranks_this)) if d <0.4 and r > 0.8]

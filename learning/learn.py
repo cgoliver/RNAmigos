@@ -2,7 +2,9 @@ import time
 import torch
 import torch.nn.functional as F
 import sys
+
 import dgl
+import networkx as nx
 
 #debug modules
 import numpy as np
@@ -150,8 +152,6 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
     fp_lam_orig = fp_lam
     reconstruction_lam_orig = reconstruction_lam
 
-    dec_mode = 'pdb-whole'
-
     batch_size = train_loader.batch_size
     #if we delay attributor, start with attributor OFF
     #if <= -1, both always ON.
@@ -189,6 +189,9 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
             if model.clustered:
                 fp = fp.long()
             fp = fp.to(device)
+
+            # for f, i in zip(fp, idx):
+                # print(all_graphs[i.item()], f)
 
             fp_pred, embeddings = model(graph)
 
