@@ -173,6 +173,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
             if model.clustered:
                 fp = fp.long()
             fp = fp.to(device)
+            K = K.to(device)
 
             # for f, i in zip(fp, idx):
                 # print(all_graphs[i.item()], f)
