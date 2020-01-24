@@ -169,7 +169,7 @@ class Model(nn.Module):
             target_K = torch.ones(target_K.shape, device=target_K.device) - target_K
 
         reconstruction_loss = torch.nn.MSELoss()(K_predict, target_K)
-        self.draw_rec(target_K, K_predict)
+        # self.draw_rec(target_K, K_predict)
         return reconstruction_loss
     # Below are loss computation function related to this model
     @staticmethod
@@ -194,7 +194,17 @@ class Model(nn.Module):
         sim_mt = torch.mm(a_norm, b_norm.transpose(0, 1))
         return sim_mt
 
-    def compute_loss(self, target_fp, pred_fp):
+    def fp_loss(self, target_fp, pred_fp):
+        if self.clustered:
+            loss = torch.nn.CrossEntropyLoss()(pred_fp, target_fp)
+        else:
+            # loss = torch.nn.MSELoss()(pred_fp, target_fp)
+            loss = torch.nn.BCELoss()(pred_fp, target_fp)
+        return loss
+    def compute_loss(self, target_fp, pred_fp, embeddings, target_K, 
+                                               rec_lam=1, 
+                                               fp_lam=1,
+                                               similarity=False):
         """
         Compute the total loss of the model.
         Includes the reconstruction loss with optional similarity/distance boolean switch
@@ -207,14 +217,8 @@ class Model(nn.Module):
         :param scaled:
         :return:
         """
-        # pw = torch.tensor([self.pos_weight], dtype=torch.float, requires_grad=False).to(self.device)
-        # loss = torch.nn.BCEWithLogitsLoss(pos_weight=pw)(pred_fp, target_fp)
-        if self.clustered:
-            loss = torch.nn.CrossEntropyLoss()(pred_fp, target_fp)
-        else:
-            # loss = torch.nn.MSELoss()(pred_fp, target_fp)
-            loss = torch.nn.BCELoss()(pred_fp, target_fp)
-
+        loss = fp_lam * self.fp_loss(target_fp, pred_fp)\
+               + rec_lam * self.rec_loss(embeddings, target_K, similarity=similarity)
         return loss
 
     def draw_rec(self, true_K, predicted_K, title=""):

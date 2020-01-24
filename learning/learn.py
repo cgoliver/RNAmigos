@@ -63,7 +63,7 @@ def print_gradients(model):
         name, p = param
         print(name, p.grad)
     pass
-def test(model, test_loader, device, fp_draw=False):
+def test(model, test_loader, device, fp_lam=1, rec_lam=1):
     """
     Compute accuracy and loss of model over given dataset
     :param model:
@@ -89,31 +89,15 @@ def test(model, test_loader, device, fp_draw=False):
         # Do the computations for the forward pass
         with torch.no_grad():
             fp_pred, embeddings = model(graph)
-        loss = model.compute_loss(fp, fp_pred)
-        kws = {'cbar': False,
-               'square':False,
-               'vmin': 0,
-               'vmax': 1}
-
+            loss = model.compute_loss(fp, fp_pred, embeddings, K,
+                                        fp_lam=fp_lam,
+                                        rec_lam=rec_lam)
         del K
         del graph
 
         test_loss += loss.item()
 
         del loss
-        if fp_draw:
-            fig, (ax1, ax2, ax3) = plt.subplots(1,3)
-            sns.heatmap(fp, ax=ax1, **kws)
-            bina = fp_pred > 0.5
-            fp_true = fp.clone().detach()
-            fp_true = fp_true.int()
-            bina = bina.int()
-            sns.heatmap(bina, ax=ax2, **kws)
-            sns.heatmap(fp_true != bina, ax=ax3, **kws)
-            ax1.set_title("True")
-            ax2.set_title("Pred")
-            ax3.set_title("Diff")
-            plt.show()
         del fp
         
 
@@ -122,7 +106,7 @@ def test(model, test_loader, device, fp_draw=False):
 def train_model(model, criterion, optimizer, device, train_loader, test_loader, save_path,
                 writer=None, num_epochs=25, wall_time=None,
                 reconstruction_lam=1, fp_lam=1, embed_only=-1,
-                 early_stop_threshold=10, fp_draw=False):
+                early_stop_threshold=10, fp_draw=False):
     """
     Performs the entire training routine.
     :param model: (torch.nn.Module): the model to train
@@ -195,26 +179,8 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
 
             fp_pred, embeddings = model(graph)
 
-            if fp_draw:
-                fig, (ax1, ax2, ax3) = plt.subplots(1,3)
-                kws = {'cbar': False,
-                       'square':False,
-                       'vmin': 0,
-                       'vmax': 1}
-
-                sns.heatmap(fp, ax=ax1, **kws)
-                bina = fp_pred > 0.5
-                fp_true = fp.clone().detach()
-                fp_true = fp_true.int()
-                bina = bina.int()
-                sns.heatmap(bina, ax=ax2, **kws)
-                sns.heatmap(fp_true != bina, ax=ax3, **kws)
-                ax1.set_title("True")
-                ax2.set_title("Pred")
-                ax3.set_title("Diff")
-                plt.show()
-
-            loss = model.compute_loss(fp, fp_pred)
+            loss = model.compute_loss(fp, fp_pred, embeddings, K,
+                                      fp_lam=fp_lam, rec_lam=reconstruction_lam)
 
             # l = model.rec_loss(embeddings, K, similarity=False)
             # print(l)
@@ -253,7 +219,7 @@ def train_model(model, criterion, optimizer, device, train_loader, test_loader, 
         # writer.log_scalar("Train accuracy during training", train_accuracy, epoch)
 
         # Test phase
-        test_loss = test(model, test_loader, device)
+        test_loss = test(model, test_loader, device, fp_lam=fp_lam, rec_lam=reconstruction_lam)
         print(">> test loss ", test_loss)
 
         writer.add_scalar("Test loss during training", test_loss, epoch)
