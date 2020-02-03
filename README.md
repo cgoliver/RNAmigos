@@ -8,3 +8,6 @@ This repository is an implementation of ligand prediction from an RNA base pairi
 > [[Paper]](https://www.biorxiv.org/content/10.1101/701326v3)
 
 
+<p align="center">
+  <img width="800" src="rnamigos.png">
+</p>
