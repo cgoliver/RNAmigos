@@ -27,4 +27,5 @@ See README in each folder for details on how to use each component.
 * OpenBabel
 * BioPython
 * tqdm
+* networkx >= 2.1
 
