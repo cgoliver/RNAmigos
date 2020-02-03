@@ -8,5 +8,23 @@ This repository is an implementation of ligand prediction from an RNA base pairi
 > [[Paper]](https://www.biorxiv.org/content/10.1101/701326v3)
 
 
-<img src="images/rnamigos.png" width="200"/>
 ![](images/rnamigos.png)
+
+We implement three major components:
+
+* `data_processor`: building a training set
+* `learning`: RGCN training
+* `tools`: general tools such as graph drawing, loading, etc.
+* `post`: validation and visualization of results 
+
+See README in each folder for details on how to use each component.
+
+## Requirements
+
+* Python >= 3.6
+* Pytorch
+* dgl
+* OpenBabel
+* BioPython
+* tqdm
+
