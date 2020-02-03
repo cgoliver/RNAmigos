@@ -221,96 +221,41 @@ def make_tree_grid(df, fp_dict, method='htune'):
         lig_dict[row.Index] = (fp_dict[row.Index], row.rank)
     compute_clustering(lig_dict)
     pass
-def ablation_results():
-    # modes = h'', '_bb-only', '_wc-bb', '_wc-bb-nc', '_no-label', '_label-shuffle', 'pair-shuffle'] # modes = ['raw', 'bb', 'wc-bb', 'pair-shuffle']
-    # modes = ['raw', 'warm', 'wc-bb', 'bb', 'majority', 'swap', 'random']
-    # modes = ['raw', 'tune', 'wc-bb', 'no-label', 'bb', 'majority', 'swap', 'random']
-    modes = ['atune', 'braw', 'cwc-bb', 'dbb', 'eno-label', 'fmajority', 'gswap', 'hrandom']
-    # modes = ['tune', 'wc-bb', 'swap']
-    title = {'raw': 'ABPN',
-             'tune': 'ABPN + unsup.',
-             'wc-bb': 'sec.struc.',
-             'bb': 'primary. struc.',
-             'majority': 'majority',
-             'swap': 'swap',
-             'no-label': 'no-label',
-             'random': 'random'
-             }
+def ablation_results(run, graph_dir, mode, decoy_mode='pdb', folds=10):
+    """
+        Compute decoy and distances for a given run and ablation mode
+
+        Returns:
+            DataFrame: decoy results dataframe
+    """
     ranks, methods, jaccards, ligs  = [], [], [], []
     graph_dir = '../data/annotated/pockets_nx_symmetric_orig'
-    decoys = get_decoys(mode='dude', annots_dir='../data/annotated/pockets_nx_symmetric_orig')
-    # graph_dir = '../data/annotated/pockets_nx_2'
-    run = 'ismb'
-    num_folds = 10
-    majority = False
+    decoys = get_decoys(mode=decoy_mode, annots_dir=graph_dir)
+    majority = mode == 'majority'
     fp_dict = {}
-    for m in modes:
-        print(m)
-        real = m[1:]
+    for fold in range(num_folds):
+        model, meta = load_model(run +"_" + str(fold))
+        # model, meta = load_model(run)
+        edge_map = meta['edge_map']
+        embed_dim = meta['embedding_dims'][-1]
+        num_edge_types = len(edge_map)
 
-        if real in ['raw', 'pair-shuffle']:
-            graph_dir = "../data/annotated/pockets_nx_symmetric_orig"
-            run = 'ismb-raw'
-        elif real  == 'swap':
-            graph_dir = '../data/annotated/pockets_nx_symmetric_scramble_orig'
-            run = 'ismb-' + real 
-        elif real  == 'majority':
-            run = 'ismb-raw'
-            graph_dir = '../data/annotated/pockets_nx_symmetric_orig'
-            majority = True
-        elif real  == 'random':
-            graph_dir = '../data/annotated/pockets_nx_symmetric_random_orig'
-            run = 'random'
-        elif real  == 'warm':
-            graph_dir = '../data/annotated/pockets_nx_symmetric_orig'
-            run  = 'ismb-warm'
-        elif real  == 'tune':
-            graph_dir == '../data/annotated/pockets_nx_symmetric_orig'
-            run = 'ismb-tune'
-        elif real == 'tune-2':
-            graph_dir == '../data/annotated/pockets_nx_symmetric_orig'
-            run = 'ismb-tune-2'
-        else:
-            graph_dir = "../data/annotated/pockets_nx_symmetric_" + real  + "_orig"
-            run = 'ismb-' + real 
+        graph_ids = pickle.load(open(f'../results/trained_models/{run}_{fold}/splits_{fold}.p', 'rb'))
 
-        print(majority, run, graph_dir)
+        ranks_this,sims_this, lig_ids, fp_dict_this  = decoy_test(model, decoys, edge_map, embed_dim,
+            nucs=meta['nucs'],
+            test_graphlist=graph_ids['test'],
+            test_graph_path=graph_dir,
+            majority=majority)
+        fp_dict.update(fp_dict_this)
+        ranks.extend(ranks_this)
+        jaccards.extend(sims_this)
+        ligs.extend(lig_ids)
+        methods.extend([m]*len(ranks_this))
 
-        for fold in range(num_folds):
-            model, meta = load_model(run +"_" + str(fold))
-            # model, meta = load_model(run)
-            edge_map = meta['edge_map']
-            embed_dim = meta['embedding_dims'][-1]
-            num_edge_types = len(edge_map)
-
-            graph_ids = pickle.load(open(f'../results/trained_models/{run}_{fold}/splits_{fold}.p', 'rb'))
-
-            ranks_this,sims_this, lig_ids, fp_dict_this  = decoy_test(model, decoys, edge_map, embed_dim,
-                nucs=meta['nucs'],
-                test_graphlist=graph_ids['test'],
-                test_graph_path=graph_dir,
-                majority=majority)
-            if real == 'tune':
-                fp_dict.update(fp_dict_this)
-            ranks.extend(ranks_this)
-            jaccards.extend(sims_this)
-            ligs.extend(lig_ids)
-            methods.extend([m]*len(ranks_this))
-
-        majority = False
 
     df = pd.DataFrame({'rank': ranks, 'jaccard': jaccards, 'method':methods, 'lig': ligs})
-    wilcoxon_all_pairs(df, modes)
-    # make_tree_grid(df, fp_dict)
-    # sys.exit()
-    means = df.groupby('method').std()
-    print(means.to_latex())
-    # make_ridge(df, x='method', y='rank', save='../tex/Figs/waves_rank_pdb.pdf')
-    # make_ridge(df, x='method', y='jaccard', save='../tex/Figs/waves_dist_pdb.pdf')
-    # make_ridge(df, x='method', y='rank', save=None)
-    # make_ridge(df, x='method', y='jaccard', save=None)
-    # make_violins(df, x='method', y='jaccard')
-    # make_violins(df, x='method', y='rank')
+    return df
 
 def structure_scanning(pdb, ligname, graph, model, edge_map, embed_dim):
     """
