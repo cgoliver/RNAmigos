@@ -14,6 +14,28 @@ import numpy as np
 import pandas as pd
 from Bio.PDB import *
 
+amino_acids = [
+        'ALA',
+        'ARG',
+        'ASN',
+        'ASP',
+        'CYS',
+        'GLU',
+        'GLN',
+        'GLY',
+        'HIS',
+        'ILE',
+        'LEU',
+        'LYS',
+        'MET',
+        'PHE',
+        'PRO',
+        'SER',
+        'THR',
+        'TRP',
+        'TYR',
+        'VAL'
+        ]
 
 def ligand_center(residue):
     return np.mean(np.array([atom.coord for atom in residue.get_atoms()]), axis=0)
@@ -24,6 +46,10 @@ def is_valid_ligand(ligand_residue):
     if ligand_residue.resname in invalids or len(ligand_residue.resname) != 3:
         return False
     return True
+
+def _is_valid_ligand(ligand_residue):
+    #no ions
+    return ligand_residue == 'MG'
 
 def pocket_res_count(struct, ligand_residue, radius=12):
     """
@@ -48,17 +74,21 @@ def pocket_res_count(struct, ligand_residue, radius=12):
     for c in range(1, radius):
         pocket = kd.search(ligand_center(ligand_residue), c, level='R')
 
-        num_protein_res, num_rna_res = (0,0)
+        rna_res = []
+        protein_res = []
         #if there is protein pocket is no bueno
         for res in pocket:
             res_name = res.resname.strip()
+            info = f"{res.get_parent().id}:{res.resname.strip()}:{res.id[1]}"
             if res_name in ['A', 'U', 'C', 'G']:
-                num_rna_res += 1
-            elif res_name != ligand_residue.resname:
-                num_protein_res += 1
+                rna_res.append(info)
+            elif res_name != ligand_residue.resname and res_name in amino_acids:
+                protein_res.append(info)
             else:
                 continue
-        pocket_rescount.append({'cutoff': c, 'rna': num_rna_res, 'protein': num_protein_res})
+        pocket_rescount.append({'cutoff': c, 'rna': len(rna_res), 'rna_res': rna_res, 
+                                'protein': len(protein_res),
+                                'protein_res': protein_res})
 
     return pocket_rescount
 
@@ -117,6 +147,7 @@ def full_struc_analyse(strucpath):
         for res in model[ligand.chain].get_residues():
             if res.id[1] == ligand.position:
                 ligand_res = res
+                print(ligand_res)
                 if is_valid_ligand(ligand_res):
                     valid_ligands.append((ligand_res, f"#{'0' if num_models == 1 else '0.1'}", pocket_res_count(model, ligand_res)))
                 else:
@@ -178,4 +209,4 @@ def process_all(pdb_path, dump_path, restart=None, parallel=False):
     pass
 if __name__ == "__main__":
     pdb_path = os.path.join("..", '..', 'carlos_docking', "data", "all_rna_with_lig_2019")
-    process_all(pdb_path, "../data/lig_dict_ismb.p", restart="../data/lig_dict.p")
+    process_all(pdb_path, "../data/jacques.p")

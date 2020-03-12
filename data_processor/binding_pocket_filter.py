@@ -74,9 +74,9 @@ def ligs_to_txt(d, dest="../data/ligs.txt"):
             o.write(" ".join([pdb, *ligs]) + "\n")
     pass
 if __name__ == "__main__":
-    d = pickle.load(open('../data/lig_dict_ismb.p', 'rb'))
+    d = pickle.load(open('lig_dict_mg.p', 'rb'))
     c = 10
     conc = .6
     ligs = get_valids(d, c, conc, min_size=4)
-    pickle.dump(ligs, open("../data/lig_dict_ismb_rna06_rad10.p", "wb"))
+    pickle.dump(ligs, open("lig_dict_mg_filter.p", "wb"))
     # ligs_to_txt(ligs)
