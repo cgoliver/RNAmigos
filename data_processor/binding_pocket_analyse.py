@@ -40,16 +40,16 @@ amino_acids = [
 def ligand_center(residue):
     return np.mean(np.array([atom.coord for atom in residue.get_atoms()]), axis=0)
 
-def is_valid_ligand(ligand_residue):
+def _is_valid_ligand(ligand_residue):
     #no ions
     invalids = ['HOH', 'NCO', 'SO4', 'EPE', 'OHX', 'MPD']
     if ligand_residue.resname in invalids or len(ligand_residue.resname) != 3:
         return False
     return True
 
-def _is_valid_ligand(ligand_residue):
+def is_valid_ligand(ligand_residue):
     #no ions
-    return ligand_residue == 'MG'
+    return ligand_residue.resname.strip() == 'MG'
 
 def pocket_res_count(struct, ligand_residue, radius=12):
     """
@@ -147,7 +147,6 @@ def full_struc_analyse(strucpath):
         for res in model[ligand.chain].get_residues():
             if res.id[1] == ligand.position:
                 ligand_res = res
-                print(ligand_res)
                 if is_valid_ligand(ligand_res):
                     valid_ligands.append((ligand_res, f"#{'0' if num_models == 1 else '0.1'}", pocket_res_count(model, ligand_res)))
                 else:
@@ -202,11 +201,10 @@ def process_all(pdb_path, dump_path, restart=None, parallel=False):
         lig_ids = []
         for l, model_id, radii in ligs:
             info = f"{model_id}:{l.get_parent().id}:{l.resname}:{l.id[1]}"
-            print(info, radii)
             lig_ids.append((info, radii))
         lig_dict[os.path.basename(p)] = lig_ids
         pickle.dump(lig_dict, open(dump_path, 'wb'))
     pass
 if __name__ == "__main__":
-    pdb_path = os.path.join("..", '..', 'carlos_docking', "data", "all_rna_with_lig_2019")
-    process_all(pdb_path, "../data/jacques.p")
+    pdb_path = os.path.join("..", '..', 'carlos_dock', "data", "all_rna_with_lig_2019")
+    process_all(pdb_path, "../data/jacques_mg_res.p")
