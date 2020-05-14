@@ -32,8 +32,32 @@ See README in each folder for details on how to use each component.
 
 ## Usage
 
-### Using the pre-trained model
+### Loading a trained model 
 
+
+* You can use the model used for the paper, or load a trained model you trained yourself (see next section)
+
+Loading the fully trained RNAmigos model and using standard pytorch API:
+
+```
+
+from tools.learning_utils import load_model
+
+model,meta = load_model('data/rnamigos')
+nx_graph, dgl_graph = nx_to_dgl(g, edge_map, nucs=nucs)
+with torch.no_grad():
+	predicted_fingerprint,_ = model(graph)
+fp_pred = fp_pred.detach().numpy() > 0.5
+```
+
+Making predictions for every graph in a folder.
+
+```
+from tools.learning_utils import inference_on_dir
+
+graph_folder = "data/predict_plz"
+Y = inference_on_dir("models/rnamigos", graph_dir)
+```
 
 ### Training your own model
 

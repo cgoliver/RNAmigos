@@ -19,7 +19,7 @@ Most important model parameters which can be specified from the command line:
 For a full list of command line options run:
 
 ```
-python learning/meain.py -h
+python learning/main.py -h
 ```
 
 All necessary files are saved in a folder inside `results/` with the run id specified at command ine (`-n`)
