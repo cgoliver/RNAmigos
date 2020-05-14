@@ -32,6 +32,18 @@ See README in each folder for details on how to use each component.
 
 ## Usage
 
+### Extracting the annotated data
+
+Extract the annotated data and place it in the annotations folder if it has not yet been created.
+
+```
+cd data
+tar -xzvf pockets_nx_symmetric_orig.tar.gz
+cd ..
+mkdir data/annotated
+mv data/pockets_nx_symmetric_orig data/annotated
+```
+
 ### Loading a trained model 
 
 
@@ -55,9 +67,13 @@ Making predictions for every graph in a folder.
 ```
 from tools.learning_utils import inference_on_dir
 
-graph_folder = "data/predict_plz"
-Y = inference_on_dir("models/rnamigos", graph_dir)
+graph_dir = "data/annotated/pockets_nx_symmetric_orig"
+
+fp_pred,_ = inference_on_dir("rnamigos", graph_dir)
 ```
+
+`fp_pred` is a N x 166 matrix where N is the number of graphs in `graph_dir` and each column corresponds to a fingerprint index.
+The raw output is a probability, so if you want a binary fingerprint, do as above and use the `>0.5` filter. 
 
 ### Training your own model
 
