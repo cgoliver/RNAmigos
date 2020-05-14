@@ -29,3 +29,26 @@ See README in each folder for details on how to use each component.
 * tqdm
 * networkx >= 2.1
 
+
+## Usage
+
+### Using the pre-trained model
+
+
+### Training your own model
+
+A basic example is training on the annotated graphs inside `data/annotated` on default settings.
+
+The trained model and logs will be saved under the ID specified with the `-n` flag.
+
+```
+$ python learning/main.py -da <name of annotated data folder> -n <run_id>
+```
+
+For a full list of command-line options:
+
+```
+$ python learning/main.py -h
+```
+
+
