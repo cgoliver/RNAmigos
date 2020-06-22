@@ -29,8 +29,12 @@ See README in each folder for details on how to use each component.
 * tqdm
 * networkx >= 2.1
 
-See `requirements.txt` for detailed list of versions.
 
+You can automatically install all the dependencies with Anaconda using the following command:
+
+```
+conda env create -f environment.yml
+```
 
 ## Usage
 

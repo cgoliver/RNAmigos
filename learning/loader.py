@@ -161,7 +161,7 @@ class Loader():
                  sim_function="R_1",
                  shuffle=False,
                  seed=0,
-                 get_sim_mat=False,
+                 get_sim_mat=True,
                  nucs=True,
                  depth=3):
         """
@@ -191,7 +191,7 @@ class Loader():
     def get_data(self, k_fold=0):
         n = len(self.dataset)
         indices = list(range(n))
-        collate_block = collate_wrapper(self.dataset.node_sim_func)
+        collate_block = collate_wrapper(self.dataset.node_sim_func, self.dataset.get_sim_mat)
 
         if k_fold > 1:
             from sklearn.model_selection import KFold
