@@ -7,6 +7,8 @@ This repository is an implementation of ligand prediction from an RNA base pairi
 > BiorXiv, 2020.
 > [[Paper]](https://www.biorxiv.org/content/10.1101/701326v3)
 
+If you just want to use the tool non-programmatically or don't need to train your own model you can check the online web-server implementation [here](http://rnamigos.cs.mcgill.ca/).
+
 
 ![](images/rnamigos.png)
 
