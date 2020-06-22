@@ -29,6 +29,8 @@ See README in each folder for details on how to use each component.
 * tqdm
 * networkx >= 2.1
 
+See `requirements.txt` for detailed list of versions.
+
 
 ## Usage
 
