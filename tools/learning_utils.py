@@ -69,12 +69,12 @@ def load_model(run):
 
     """
 
-    meta = pickle.load(open(f'../results/trained_models/{run}/meta.p', 'rb'))
+    meta = pickle.load(open(f'models/{run}/meta.p', 'rb'))
 
     edge_map = meta['edge_map']
     num_edge_types = len(edge_map)
 
-    model_dict = torch.load(f'../results/trained_models/{run}/{run}.pth', map_location='cpu')
+    model_dict = torch.load(f'models/{run}/{run}.pth', map_location='cpu')
     model = Model(dims=meta['embedding_dims'], attributor_dims=meta['attributor_dims'], num_rels=num_edge_types,
                   num_bases=-1,
                   device='cpu',

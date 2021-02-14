@@ -19,7 +19,7 @@ from data_processor.node_sim import SimFunctionNode, k_block_list
 class V1(Dataset):
     def __init__(self, sim_function="R_1",
                     annotated_path='../data/annotated/pockets_nx_symmetric',
-                    get_sim_mat=True,
+                    get_sim_mat=False,
                     nucs=True,
                     depth=3,
                     shuffle=False,
@@ -161,7 +161,7 @@ class Loader():
                  sim_function="R_1",
                  shuffle=False,
                  seed=0,
-                 get_sim_mat=True,
+                 get_sim_mat=False,
                  nucs=True,
                  depth=3):
         """
@@ -244,8 +244,11 @@ class InferenceLoader(Loader):
 
     def get_data(self):
         collate_block = collate_wrapper(None, get_sim_mat=False)
-        train_loader = DataLoader(dataset=self.dataset, shuffle=False, batch_size=self.batch_size,
-                                  num_workers=self.num_workers, collate_fn=collate_block)
+        train_loader = DataLoader(dataset=self.dataset,
+                                  shuffle=False,
+                                  batch_size=self.batch_size,
+                                  num_workers=self.num_workers,
+                                  collate_fn=collate_block)
         return train_loader
 if __name__ == '__main__':
     loader = Loader(shuffle=False,seed=99, batch_size=1, num_workers=1)

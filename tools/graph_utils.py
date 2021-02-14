@@ -38,10 +38,9 @@ def nx_to_dgl_jacques(graph, edge_map):
     floatid = g_dgl.ndata['identity'].float()
     g_dgl.ndata['h'] = torch.cat([g_dgl.ndata['angles'], floatid], dim = 1)
 
-    print("HII")
     return graph, g_dgl
 
-def nx_to_dgl_(graph, edge_map, embed_dim):
+def nx_to_dgl(graph, edge_map, embed_dim):
     """
         Networkx graph to DGL.
     """
@@ -49,6 +48,7 @@ def nx_to_dgl_(graph, edge_map, embed_dim):
     import dgl
 
     graph, _, ring = pickle.load(open(graph, 'rb'))
+    print(graph.nodes(data=True))
     one_hot = {edge: edge_map[label] for edge, label in (nx.get_edge_attributes(graph, 'label')).items()}
     nx.set_edge_attributes(graph, name='one_hot', values=one_hot)
     one_hot = {edge: torch.tensor(edge_map[label]) for edge, label in (nx.get_edge_attributes(graph, 'label')).items()}
@@ -107,7 +107,7 @@ def graph_ablations(G, mode):
         Remove edges with certain labels depending on the mode.
 
         :params
-        
+
         :G Binding Site Graph
         :mode how to remove edges ('bb-only', 'wc-bb', 'wc-bb-nc', 'no-label')
 

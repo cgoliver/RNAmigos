@@ -57,20 +57,9 @@ mv data/pockets_nx_symmetric_orig data/annotated
 
 * You can use the model used for the paper, or load a trained model you trained yourself (see next section)
 
-Loading the fully trained RNAmigos model and using standard pytorch API:
-
-```
-
-from tools.learning_utils import load_model
-
-model,meta = load_model('data/rnamigos')
-nx_graph, dgl_graph = nx_to_dgl(g, edge_map, nucs=nucs)
-with torch.no_grad():
-	predicted_fingerprint,_ = model(graph)
-fp_pred = fp_pred.detach().numpy() > 0.5
-```
-
 Making predictions for every graph in a folder.
+
+Create a script in the root of the repository with the following code:
 
 ```
 from tools.learning_utils import inference_on_dir
