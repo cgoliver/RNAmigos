@@ -2,10 +2,21 @@
 
 This repository is an implementation of ligand prediction from an RNA base pairing network.
 
-> Augmented base pairing networks encode RNA-small molecule binding preferences. 
-> Oliver C., Mallet V., Sarrazin Gendron, R., Reinharz V., Hamilton L W., Moitessier N., Waldispuhl J.
-> BiorXiv, 2020.
-> [[Paper]](https://www.biorxiv.org/content/10.1101/701326v3)
+
+Please cite:
+
+```
+@article{oliver2020augmented,
+  title={Augmented base pairing networks encode RNA-small molecule binding preferences},
+  author={Oliver, Carlos and Mallet, Vincent and Gendron, Roman Sarrazin and Reinharz, Vladimir and Hamilton, William L and Moitessier, Nicolas and Waldisp{\"u}hl, J{\'e}r{\^o}me},
+  journal={Nucleic acids research},
+  volume={48},
+  number={14},
+  pages={7690--7699},
+  year={2020},
+  publisher={Oxford University Press}
+}
+```
 
 If you just want to use the tool non-programmatically or don't need to train your own model you can check the online web-server implementation [here](http://rnamigos.cs.mcgill.ca/).
 
