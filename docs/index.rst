@@ -1,12 +1,10 @@
 .. RNAmigos documentation master file, created by
-   sphinx-quickstart on Wed Mar 10 13:25:06 2021.
+   sphinx-quickstart on Wed Mar 10 13:29:21 2021.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 Welcome to RNAmigos's documentation!
 ====================================
-
-Hello world!
 
 .. toctree::
    :maxdepth: 2
