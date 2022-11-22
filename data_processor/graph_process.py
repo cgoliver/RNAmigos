@@ -49,16 +49,16 @@ def to_orig(G):
     # remove_non_standard_edges(G)
     H = nx.Graph()
     for n1, n2, d in G.edges(data=True):
-        label = symmetric(d['label'])
-        if label in valid_edges:
-            H.add_edge(n1, n2, label=label)
+        label = symmetric(d['LW'])
+        if label.upper() in valid_edges:
+            H.add_edge(n1, n2, label=label.upper())
 
     #add pdb position and nt to node data
-    d_orig = {n:d['nucleotide'].pdb_pos for n,d in G.nodes(data=True)}
+    d_orig = {n: d['nt_resnum'] for n, d in G.nodes(data=True)}
     nx.set_node_attributes(H, {n:d_orig[n] for n in H.nodes()}, 'pdb_pos')
-    d_orig = {n:d['nucleotide'].nt for n,d in G.nodes(data=True)}
+    d_orig = {n: d['nt_code'] for n, d in G.nodes(data=True)}
     nx.set_node_attributes(H, {n:d_orig[n] for n in H.nodes()}, 'nt')
-    d_orig = {n:n[0] for n,d in G.nodes(data=True)}
+    d_orig = {n: n.split('.')[1] for n, d in G.nodes(data=True)}
     nx.set_node_attributes(H, {n:d_orig[n] for n in H.nodes()}, 'chain')
     return H
 
@@ -123,7 +123,7 @@ def graph_ablations(G, mode):
 
 def find_node(graph, chain, pos):
     for n,d in graph.nodes(data=True):
-        if (n[0] == chain) and (d['nucleotide'].pdb_pos == str(pos)):
+        if (n.split('.')[1] == chain) and (str(d['nt_resnum']) == str(pos)):
             return n
     return None
 
@@ -167,7 +167,7 @@ def dangle_trim(G):
     """
     Recursively remove dangling nodes from graph.
     """
-    is_backbone = lambda n,G: sum([G[n][nei]['label'] != 'B53' for nei in G.neighbors(n)]) == 0
+    is_backbone = lambda n, G: sum([G[n][nei]['LW'] != 'B53' for nei in G.neighbors(n)]) == 0
     degree = lambda i, G, nodelist: np.sum(nx.to_numpy_matrix(G, nodelist=nodelist)[i])
     cur_G = G.copy()
     while True:

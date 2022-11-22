@@ -40,14 +40,14 @@ amino_acids = [
 def ligand_center(residue):
     return np.mean(np.array([atom.coord for atom in residue.get_atoms()]), axis=0)
 
-def _is_valid_ligand(ligand_residue):
+def is_valid_ligand(ligand_residue):
     #no ions
     invalids = ['HOH', 'NCO', 'SO4', 'EPE', 'OHX', 'MPD']
     if ligand_residue.resname in invalids or len(ligand_residue.resname) != 3:
         return False
     return True
 
-def is_valid_ligand(ligand_residue):
+def _is_valid_ligand(ligand_residue):
     #no ions
     return ligand_residue.resname.strip() == 'MG'
 
