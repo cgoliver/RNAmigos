@@ -90,12 +90,14 @@ class Embedder(nn.Module):
     def build_hidden_layer(self, in_dim, out_dim):
         return RelGraphConv(in_dim, out_dim, self.num_rels,
                             num_bases=self.num_bases,
-                            activation=F.relu)
+                            activation=F.relu,
+                            self_loop=False)
 
     # No activation for the last layer
     def build_output_layer(self, in_dim, out_dim):
         return RelGraphConv(in_dim, out_dim, self.num_rels, num_bases=self.num_bases,
-                            activation=None)
+                            activation=None,
+                            self_loop=False)
 
     def forward(self, g):
         h = g.in_degrees().view(-1, 1).float().to(self.current_device)

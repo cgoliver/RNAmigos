@@ -17,7 +17,6 @@ if __name__ == '__main__':
 
 from learning.utils import dgl_to_nx
 from learning.decoy_utils import *
-from post.drawing import rna_draw
 
 def send_graph_to_device(g, device):
     """
@@ -126,7 +125,7 @@ def test(model, test_loader, device, fp_lam=1, rec_lam=1):
 def train_model(model, criterion, optimizer, device, train_loader, test_loader, save_path,
                 writer=None, num_epochs=25, wall_time=None,
                 reconstruction_lam=1, fp_lam=1, embed_only=-1,
-                early_stop_threshold=10, fp_draw=False):
+                early_stop_threshold=10):
     """
     Performs the entire training routine.
     :param model: (torch.nn.Module): the model to train

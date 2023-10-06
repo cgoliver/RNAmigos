@@ -7,6 +7,7 @@ import itertools
 if __name__ == '__main__':
     sys.path.append('../')
 
+import rnaglib
 import networkx as nx
 from tqdm import tqdm
 import dgl
@@ -19,10 +20,12 @@ from data_processor.node_sim import SimFunctionNode, k_block_list
 class V1(Dataset):
     def __init__(self, sim_function="R_1",
                     annotated_path='../data/annotated/pockets_nx_symmetric',
+                    edge_map=None,
                     get_sim_mat=False,
                     nucs=True,
                     depth=3,
                     shuffle=False,
+                    pocket_only=False,
                     seed=0,
                     clustered=False,
                     num_clusters=8):
@@ -39,14 +42,19 @@ class V1(Dataset):
         print(f">>> fetching data from {annotated_path}")
         self.path = annotated_path
         self.all_graphs = sorted(os.listdir(annotated_path))
+        self.pocket_only = pocket_only
         if seed:
             print(f">>> shuffling with random seed {seed}")
             np.random.seed(seed)
         if shuffle:
             np.random.shuffle(self.all_graphs)
         #build edge map
-        self.edge_map, self.edge_freqs = self._get_edge_data()
+        if edge_map is None:
+            self.edge_map = rnaglib.config.graph_keys.EDGE_MAP_FR3D
+        else:
+            self.edge_map = edge_map
         self.num_edge_types = len(self.edge_map)
+        self.edge_freqs = rnaglib.config.graph_keys.IDF
         self.nucs = nucs
         self.clustered = clustered
         self.num_clusters = num_clusters
@@ -56,7 +64,7 @@ class V1(Dataset):
 
         print(f">>> found {self.num_edge_types} edge types, frequencies: {self.edge_freqs}")
 
-        self.node_sim_func = SimFunctionNode(method=sim_function, IDF=self.edge_freqs, depth=depth)
+        self.node_sim_func = SimFunctionNode(method=sim_function, IDF=rnaglib.config.graph_keys.IDF, depth=depth)
 
         self.n = len(self.all_graphs)
 
@@ -70,13 +78,33 @@ class V1(Dataset):
         """
             Returns one training item at index `idx`.
         """
-        graph, _, ring, fp = pickle.load(open(os.path.join(self.path, self.all_graphs[idx]), 'rb'))
+        if self.pocket_only:
+            graph = pickle.load(open(os.path.join(self.path, self.all_graphs[idx]), 'rb'))
+        else:
+            graph, _, ring, fp = pickle.load(open(os.path.join(self.path, self.all_graphs[idx]), 'rb'))
+
+
+        kill_edges = []
+        relabel_edges = {}
+        for u, v, d in graph.edges(data=True):
+            elabel = d['LW']
+            if elabel == 'B35':
+                kill_edges.append((u, v))    
+                continue
+            if elabel == 'B53':
+                continue
+
+            relabel_edges[(u, v)] = str(elabel[0] + "".join(sorted(elabel[1:]))).upper()
+
+
+        graph.remove_edges_from(kill_edges)
+        nx.set_edge_attributes(graph, name='LW', values=relabel_edges)
 
         #adding the self edges
         # graph.add_edges_from([(n, n, {'label': 'X'}) for n in graph.nodes()])
-        graph = nx.to_undirected(graph)
+        # graph = nx.to_undirected(graph)
         one_hot = {edge: torch.tensor(self.edge_map[label]) for edge, label in
-                   (nx.get_edge_attributes(graph, 'label')).items()}
+                   (nx.get_edge_attributes(graph, 'LW')).items()}
         nx.set_edge_attributes(graph, name='one_hot', values=one_hot)
 
         node_attrs = None
@@ -88,10 +116,11 @@ class V1(Dataset):
                        graph.nodes()}
 
         nx.set_node_attributes(graph, name='one_hot', values=one_hot_nucs)
-
-        g_dgl = dgl.DGLGraph()
-        g_dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'], node_attrs=['one_hot'])
+        g_dgl = dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'], node_attrs=['one_hot'])
         g_dgl.title = self.all_graphs[idx]
+
+        if self.pocket_only:
+            return g_dgl
 
         if self.clustered:
             one_hot_label = torch.zeros((1,self.num_clusters))
@@ -106,27 +135,7 @@ class V1(Dataset):
         else:
             return g_dgl, fp, [idx]
 
-    def _get_edge_data(self):
-        """
-            Get edge type statistics, and edge map.
-        """
-        edge_counts = Counter()
-        edge_labels = set()
-        print("Collecting edge data...")
-        graphlist = os.listdir(self.path)
-        for g in tqdm(graphlist):
-            graph,_,_,_ = pickle.load(open(os.path.join(self.path, g), 'rb'))
-            if len(graph.nodes()) < 4:
-                print(len(graph.nodes()), g)
-            # assert len(graph.nodes()) > 0, f"{len(graph.nodes())}"
-            edges = {e_dict['label'] for _,_,e_dict in graph.edges(data=True)}
-            edge_counts.update(edges)
-
-        edge_map = {label:i for i,label in enumerate(sorted(edge_counts))}
-        IDF = {k: np.log(len(graphlist)/ edge_counts[k] + 1) for k in edge_counts}
-        return edge_map, IDF
-
-def collate_wrapper(node_sim_func, get_sim_mat=True):
+def collate_wrapper(node_sim_func, pocket_only=False, get_sim_mat=True):
     """
         Wrapper for collate function so we can use different node similarities.
     """
@@ -141,6 +150,9 @@ def collate_wrapper(node_sim_func, get_sim_mat=True):
             batched_graph = dgl.batch(graphs)
             K = k_block_list(rings, node_sim_func)
             return batched_graph, torch.from_numpy(K).float(), torch.from_numpy(fp).float(), torch.from_numpy(idx)
+    if pocket_only:
+        def collate_block(samples):
+            return dgl.batch(samples)
     else:
         def collate_block(samples):
             # The input `samples` is a list of pairs
@@ -156,6 +168,7 @@ def collate_wrapper(node_sim_func, get_sim_mat=True):
 class Loader():
     def __init__(self,
                  annotated_path='../data/annotated/pockets_nx_symmetric/',
+                 edge_map=None,
                  batch_size=128,
                  num_workers=20,
                  sim_function="R_1",
@@ -163,7 +176,8 @@ class Loader():
                  seed=0,
                  get_sim_mat=False,
                  nucs=True,
-                 depth=3):
+                 depth=3,
+                 pocket_only=False):
         """
         Wrapper class to call with all arguments and that returns appropriate data_loaders
         :param pocket_path:
@@ -181,17 +195,19 @@ class Loader():
         self.dataset = V1(annotated_path=annotated_path,
                           sim_function=sim_function,
                           get_sim_mat=get_sim_mat,
+                          edge_map=edge_map,
                           shuffle=shuffle,
                           seed=seed,
                           nucs=nucs,
-                          depth=depth)
+                          depth=depth,
+                          pocket_only=pocket_only)
 
         self.num_edge_types = self.dataset.num_edge_types
 
     def get_data(self, k_fold=0):
         n = len(self.dataset)
         indices = list(range(n))
-        collate_block = collate_wrapper(self.dataset.node_sim_func, self.dataset.get_sim_mat)
+        collate_block = collate_wrapper(self.dataset.node_sim_func, self.dataset.get_sim_mat, pocket_only=pocket_only)
 
         if k_fold > 1:
             from sklearn.model_selection import KFold
@@ -235,15 +251,20 @@ class InferenceLoader(Loader):
     def __init__(self,
                  annotated_path,
                  batch_size=5,
-                 num_workers=20):
+                 num_workers=20,
+                 edge_map=None,
+                 pocket_only=False):
         super().__init__(
             annotated_path=annotated_path,
             batch_size=batch_size,
-            num_workers=num_workers)
+            num_workers=num_workers,
+            edge_map=edge_map,
+            pocket_only=pocket_only)
+        self.pocket_only = pocket_only
         self.dataset.all_graphs = sorted(os.listdir(annotated_path))
 
     def get_data(self):
-        collate_block = collate_wrapper(None, get_sim_mat=False)
+        collate_block = collate_wrapper(None, get_sim_mat=False, pocket_only=self.pocket_only)
         train_loader = DataLoader(dataset=self.dataset,
                                   shuffle=False,
                                   batch_size=self.batch_size,

@@ -102,3 +102,41 @@ $ python learning/main.py -h
 ```
 
 
+### Inference on your own structures
+
+If you have your own RNA structures you want to run the model on, check out `inference.py`.
+
+0. Make sure you have rnaglib installed (`pip install -r requirements.txt`)
+1. Create a folder where you store the .cif files for your RNAs. (we have some sample ones in `data/my_pdbs`
+2. `mkdir data/my_graphs` where we will store the annotated graphs
+3. Convert the structures to graphs using `fr3d_to_graph()` from [rnaglib](rnaglib.readthedocs.io)
+4. Launch the model. You will get one fingerprint prediction for each graph. You can use this fingerprint to screen for similar ones in a ligand database.
+
+> :warning: RNAmigos is **not** a pocket finding method. We assume that the .cif you pass only contains residues you consider to belong to the binding site of interest.
+
+> :warning: This model was trained as a proof of concept and has not been evaluated on PDBs outside the publicly available ones at the time of publication. We therefore cannot guarantee the quality of the predictions. If you want to use the latest models currently under development please contact me (oliver@biochem.mpg.de)
+
+```python
+
+import os
+import pickle
+from pathlib import Path
+
+from rnaglib.prepare_data import fr3d_to_graph
+from tools.learning_utils import inference_on_dir
+
+pdb_dir = "data/my_pdbs"
+graph_dir = "data/my_graphs"
+
+# make the graphs and dump them
+for p in os.listdir(pdb_dir):
+    g = fr3d_to_graph(Path(pdb_dir, p))
+    pickle.dump(g, open(Path(graph_dir, g.graph['pdbid'] + '.p'), 'wb'))
+
+fp_pred,_ = inference_on_dir("rnamigos", graph_dir, pocket_only=True)
+graphs = os.listdir(graph_dir)
+
+for i in range(len(graphs)):
+    print(f"Graph {graphs[i]} predicted fingerprint: {fp_pred[0][i]}")
+
+```

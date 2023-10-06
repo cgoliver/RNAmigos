@@ -79,6 +79,7 @@ def load_model(run):
                   num_bases=-1,
                   device='cpu',
                   pool=meta['pool'])
+    print(model_dict['model_state_dict'])
     model.load_state_dict(model_dict['model_state_dict'])
     return model, meta
 
@@ -98,7 +99,7 @@ def load_data(annotated_path, meta, get_sim_mat=True):
     train_loader, _, test_loader = loader.get_data()
     return train_loader, test_loader
 
-def predict(model, loader, max_graphs=10, device='cpu'):
+def predict(model, loader, max_graphs=10, pocket_only=False, device='cpu'):
     all_graphs = loader.dataset.all_graphs
     Z = []
     fps = []
@@ -106,7 +107,12 @@ def predict(model, loader, max_graphs=10, device='cpu'):
 
     model = model.to(device)
     with torch.no_grad():
-        for i, (graph, K, fp, graph_index) in tqdm(enumerate(loader), total=len(loader)):
+        for i, data in tqdm(enumerate(loader), total=len(loader)):
+
+            if pocket_only:
+                graph = data
+            else:
+                graph = data[0]
 
             graph = send_graph_to_device(graph, device)
             fp, z = model(graph)
@@ -118,7 +124,7 @@ def predict(model, loader, max_graphs=10, device='cpu'):
     return fps, Z
 
 def inference_on_dir(run, graph_dir, ini=True, max_graphs=10, get_sim_mat=False,
-                     split_mode='test', attributions=False, device='cpu'):
+                     split_mode='test', pocket_only=False, attributions=False, device='cpu'):
     """
         Load model and get node embeddings.
 
@@ -136,9 +142,9 @@ def inference_on_dir(run, graph_dir, ini=True, max_graphs=10, get_sim_mat=False,
 
     model, meta = meta_load_model(run)
 
-    loader = InferenceLoader(graph_dir).get_data()
+    loader = InferenceLoader(graph_dir, pocket_only=pocket_only, edge_map=meta['edge_map'], num_workers=0).get_data()
 
-    return predict(model, loader, max_graphs=max_graphs,
+    return predict(model, loader, max_graphs=max_graphs, pocket_only=pocket_only,
                                device=device)
 
 def meta_load_model(run):
@@ -153,10 +159,17 @@ def meta_load_model(run):
     edge_map = meta['edge_map']
     num_edge_types = len(edge_map)
 
-    model_dict = torch.load(f'models/{run}/{run}.pth', map_location='cpu')
+    model_dict = torch.load(f'models/{run}/{run}.pth', map_location='cpu')['model_state_dict']
+    filtered_state_dict = {}
+    for k, p in model_dict.items():
+        if k.startswith('embedder.layers'):
+            filtered_state_dict[k.replace('weight', 'linear_r.W')] = p
+        else:
+            filtered_state_dict[k] = p
+
     model = Model(dims=meta['embedding_dims'], attributor_dims=meta['attributor_dims'], num_rels=num_edge_types,
                   num_bases=-1, device='cpu')
-    model.load_state_dict(model_dict['model_state_dict'])
+    model.load_state_dict(filtered_state_dict)
     return model, meta
 
 def model_from_hparams(hparams):
