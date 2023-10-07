@@ -1,0 +1,7 @@
+dgl
+torch
+# openbabel
+biopython
+tqdm
+networkx
+rnaglib @ git+https://github.com/cgoliver/rnaglib@nox3dna
