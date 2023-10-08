@@ -109,7 +109,7 @@ If you have your own RNA structures you want to run the model on, check out `inf
 0. Make sure you have rnaglib installed (`pip install -r requirements.txt`)
 1. Create a folder where you store the .cif files for your RNAs. (we have some sample ones in `data/my_pdbs`
 2. `mkdir data/my_graphs` where we will store the annotated graphs
-3. Convert the structures to graphs using `fr3d_to_graph()` from [rnaglib](rnaglib.readthedocs.io)
+3. Convert the structures to graphs using `fr3d_to_graph()` from [rnaglib](https://rnaglib.readthedocs.io)
 4. Launch the model. You will get one fingerprint prediction for each graph. You can use this fingerprint to screen for similar ones in a ligand database.
 
 > :warning: RNAmigos is **not** a pocket finding method. We assume that the .cif you pass only contains residues you consider to belong to the binding site of interest.
