@@ -84,6 +84,7 @@ class V1(Dataset):
             graph, _, ring, fp = pickle.load(open(os.path.join(self.path, self.all_graphs[idx]), 'rb'))
 
 
+        print(self.all_graphs[idx])
         kill_edges = []
         relabel_edges = {}
         for u, v, d in graph.edges(data=True):
@@ -97,6 +98,7 @@ class V1(Dataset):
             relabel_edges[(u, v)] = str(elabel[0] + "".join(sorted(elabel[1:]))).upper()
 
 
+        print(graph.nodes())
         graph.remove_edges_from(kill_edges)
         nx.set_edge_attributes(graph, name='LW', values=relabel_edges)
 
@@ -109,6 +111,7 @@ class V1(Dataset):
 
         node_attrs = None
         if self.nucs:
+            print('nucs')
             one_hot_nucs  = {node: torch.tensor(self.nuc_map[label], dtype=torch.float32) for node, label in
                        (nx.get_node_attributes(graph, 'nt')).items()}
         else:
@@ -116,6 +119,7 @@ class V1(Dataset):
                        graph.nodes()}
 
         nx.set_node_attributes(graph, name='one_hot', values=one_hot_nucs)
+        print(graph.nodes(data=True))
         g_dgl = dgl.from_networkx(nx_graph=graph, edge_attrs=['one_hot'], node_attrs=['one_hot'])
         g_dgl.title = self.all_graphs[idx]
 

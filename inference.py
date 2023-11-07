@@ -17,4 +17,4 @@ fp_pred,_ = inference_on_dir("rnamigos", graph_dir, pocket_only=True)
 graphs = os.listdir(graph_dir)
 
 for i in range(len(graphs)):
-    print(f"Graph {graphs[i]} predicted fingerprint: {fp_pred[0][i]}")
+    print(f"Graph {graphs[i]} predicted fingerprint: {list(map(int, fp_pred[0][i] > 0.5))}")
