@@ -16,10 +16,10 @@ from Bio.PDB import *
 from tqdm import tqdm
 
 from tools.drawing import rna_draw 
-from data_processor.pocket_grid import sample_non_binding_sites
+#from data_processor.pocket_grid import sample_non_binding_sites
 from data_processor.rna_classes import *
 from data_processor.graph_process import *
-from data_processor.marker_file import *
+#from data_processor.marker_file import *
 
 faces = ['W', 'S', 'H']
 orientations = ['C', 'T']
