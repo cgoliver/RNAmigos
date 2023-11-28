@@ -21,8 +21,6 @@ Please cite:
 }
 ```
 
-If you just want to use the tool non-programmatically or don't need to train your own model you can check the online web-server implementation [here](http://rnamigos.cs.mcgill.ca/).
-
 
 ![](images/rnamigos.png)
 
