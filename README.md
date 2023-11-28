@@ -1,7 +1,8 @@
 # RNAmigos: RNA Small Molecule Ligand Prediction
 
-This repository is an implementation of ligand prediction from an RNA base pairing network.
+This repository is an implementation of ligand prediction from an RNA base pairing network associated with the NAR paper.
 
+> :warning: For the latest RNAmigos models, visit the [rnamigos2](https://github.com/cgoliver/rnamigos2) repo.
 
 > :warning: If you just want to obtain the data used in the paper, use the dataset on [Zenodo](https://zenodo.org/record/8338267).
 
